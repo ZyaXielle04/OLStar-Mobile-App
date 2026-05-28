@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "885674115344",
+    "firebase_url": "https://olstar-website-45f8a-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "olstar-website-45f8a",
+    "storage_bucket": "olstar-website-45f8a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:885674115344:android:865a57f34baa2107706595",
+        "android_client_info": {
+          "package_name": "com.olstar.travelapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "885674115344-o3ojb7m5olsg63radp7ppaog4nidgb1u.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.olstar.travelapp",
+            "certificate_hash": "8df190ccb8bc8d89d7c7118720c40f95ba33bea0"
+          }
+        },
+        {
+          "client_id": "885674115344-6vpip88cqvmodvpbdqltk5qebj5g7soi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvYxb8lWYPHiq-zgoeARIJZsujOM5j7ro"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "885674115344-6vpip88cqvmodvpbdqltk5qebj5g7soi.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "885674115344-1uf795q3ocka2gjaee938meestbo6gfq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.olstar.travelapp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
