@@ -1,12 +1,256 @@
 // components/booking/AirportTransferForm1.js
-import { View, Text, TextInput, Pressable, ScrollView, Alert, Modal, ActivityIndicator, FlatList } from 'react-native';
-import { useState, useCallback, useEffect } from 'react';
+import { View, Text, TextInput, Pressable, ScrollView, Alert, Modal, ActivityIndicator } from 'react-native';
+import { useState, useEffect } from 'react';
 import { styles } from '../../styles/AirportTransferForm.styles';
 import { database } from '../../firebaseConfig';
 import { ref, get, child } from 'firebase/database';
 import { Ionicons } from '@expo/vector-icons';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
-export default function AirportTransferForm1({ onBack }) {
+const GEOAPIFY_API_KEY = process.env.EXPO_PUBLIC_GEOAPIFY_API_KEY;
+const countryCodes = [
+  { code: 'AF', name: 'Afghanistan', dialCode: '+93' },
+  { code: 'AL', name: 'Albania', dialCode: '+355' },
+  { code: 'DZ', name: 'Algeria', dialCode: '+213' },
+  { code: 'AS', name: 'American Samoa', dialCode: '+1-684' },
+  { code: 'AD', name: 'Andorra', dialCode: '+376' },
+  { code: 'AO', name: 'Angola', dialCode: '+244' },
+  { code: 'AI', name: 'Anguilla', dialCode: '+1-264' },
+  { code: 'AG', name: 'Antigua and Barbuda', dialCode: '+1-268' },
+  { code: 'AR', name: 'Argentina', dialCode: '+54' },
+  { code: 'AM', name: 'Armenia', dialCode: '+374' },
+  { code: 'AW', name: 'Aruba', dialCode: '+297' },
+  { code: 'AU', name: 'Australia', dialCode: '+61' },
+  { code: 'AT', name: 'Austria', dialCode: '+43' },
+  { code: 'AZ', name: 'Azerbaijan', dialCode: '+994' },
+  { code: 'BS', name: 'Bahamas', dialCode: '+1-242' },
+  { code: 'BH', name: 'Bahrain', dialCode: '+973' },
+  { code: 'BD', name: 'Bangladesh', dialCode: '+880' },
+  { code: 'BB', name: 'Barbados', dialCode: '+1-246' },
+  { code: 'BY', name: 'Belarus', dialCode: '+375' },
+  { code: 'BE', name: 'Belgium', dialCode: '+32' },
+  { code: 'BZ', name: 'Belize', dialCode: '+501' },
+  { code: 'BJ', name: 'Benin', dialCode: '+229' },
+  { code: 'BM', name: 'Bermuda', dialCode: '+1-441' },
+  { code: 'BT', name: 'Bhutan', dialCode: '+975' },
+  { code: 'BO', name: 'Bolivia', dialCode: '+591' },
+  { code: 'BA', name: 'Bosnia and Herzegovina', dialCode: '+387' },
+  { code: 'BW', name: 'Botswana', dialCode: '+267' },
+  { code: 'BR', name: 'Brazil', dialCode: '+55' },
+  { code: 'IO', name: 'British Indian Ocean Territory', dialCode: '+246' },
+  { code: 'VG', name: 'British Virgin Islands', dialCode: '+1-284' },
+  { code: 'BN', name: 'Brunei', dialCode: '+673' },
+  { code: 'BG', name: 'Bulgaria', dialCode: '+359' },
+  { code: 'BF', name: 'Burkina Faso', dialCode: '+226' },
+  { code: 'BI', name: 'Burundi', dialCode: '+257' },
+  { code: 'KH', name: 'Cambodia', dialCode: '+855' },
+  { code: 'CM', name: 'Cameroon', dialCode: '+237' },
+  { code: 'CA', name: 'Canada', dialCode: '+1' },
+  { code: 'CV', name: 'Cape Verde', dialCode: '+238' },
+  { code: 'KY', name: 'Cayman Islands', dialCode: '+1-345' },
+  { code: 'CF', name: 'Central African Republic', dialCode: '+236' },
+  { code: 'TD', name: 'Chad', dialCode: '+235' },
+  { code: 'CL', name: 'Chile', dialCode: '+56' },
+  { code: 'CN', name: 'China', dialCode: '+86' },
+  { code: 'CO', name: 'Colombia', dialCode: '+57' },
+  { code: 'KM', name: 'Comoros', dialCode: '+269' },
+  { code: 'CG', name: 'Congo', dialCode: '+242' },
+  { code: 'CD', name: 'Congo, Democratic Republic', dialCode: '+243' },
+  { code: 'CK', name: 'Cook Islands', dialCode: '+682' },
+  { code: 'CR', name: 'Costa Rica', dialCode: '+506' },
+  { code: 'CI', name: 'Cote dIvoire', dialCode: '+225' },
+  { code: 'HR', name: 'Croatia', dialCode: '+385' },
+  { code: 'CU', name: 'Cuba', dialCode: '+53' },
+  { code: 'CW', name: 'Curacao', dialCode: '+599' },
+  { code: 'CY', name: 'Cyprus', dialCode: '+357' },
+  { code: 'CZ', name: 'Czech Republic', dialCode: '+420' },
+  { code: 'DK', name: 'Denmark', dialCode: '+45' },
+  { code: 'DJ', name: 'Djibouti', dialCode: '+253' },
+  { code: 'DM', name: 'Dominica', dialCode: '+1-767' },
+  { code: 'DO', name: 'Dominican Republic', dialCode: '+1-809' },
+  { code: 'EC', name: 'Ecuador', dialCode: '+593' },
+  { code: 'EG', name: 'Egypt', dialCode: '+20' },
+  { code: 'SV', name: 'El Salvador', dialCode: '+503' },
+  { code: 'GQ', name: 'Equatorial Guinea', dialCode: '+240' },
+  { code: 'ER', name: 'Eritrea', dialCode: '+291' },
+  { code: 'EE', name: 'Estonia', dialCode: '+372' },
+  { code: 'SZ', name: 'Eswatini', dialCode: '+268' },
+  { code: 'ET', name: 'Ethiopia', dialCode: '+251' },
+  { code: 'FK', name: 'Falkland Islands', dialCode: '+500' },
+  { code: 'FO', name: 'Faroe Islands', dialCode: '+298' },
+  { code: 'FJ', name: 'Fiji', dialCode: '+679' },
+  { code: 'FI', name: 'Finland', dialCode: '+358' },
+  { code: 'FR', name: 'France', dialCode: '+33' },
+  { code: 'GF', name: 'French Guiana', dialCode: '+594' },
+  { code: 'PF', name: 'French Polynesia', dialCode: '+689' },
+  { code: 'GA', name: 'Gabon', dialCode: '+241' },
+  { code: 'GM', name: 'Gambia', dialCode: '+220' },
+  { code: 'GE', name: 'Georgia', dialCode: '+995' },
+  { code: 'DE', name: 'Germany', dialCode: '+49' },
+  { code: 'GH', name: 'Ghana', dialCode: '+233' },
+  { code: 'GI', name: 'Gibraltar', dialCode: '+350' },
+  { code: 'GR', name: 'Greece', dialCode: '+30' },
+  { code: 'GL', name: 'Greenland', dialCode: '+299' },
+  { code: 'GD', name: 'Grenada', dialCode: '+1-473' },
+  { code: 'GP', name: 'Guadeloupe', dialCode: '+590' },
+  { code: 'GU', name: 'Guam', dialCode: '+1-671' },
+  { code: 'GT', name: 'Guatemala', dialCode: '+502' },
+  { code: 'GN', name: 'Guinea', dialCode: '+224' },
+  { code: 'GW', name: 'Guinea-Bissau', dialCode: '+245' },
+  { code: 'GY', name: 'Guyana', dialCode: '+592' },
+  { code: 'HT', name: 'Haiti', dialCode: '+509' },
+  { code: 'HN', name: 'Honduras', dialCode: '+504' },
+  { code: 'HK', name: 'Hong Kong', dialCode: '+852' },
+  { code: 'HU', name: 'Hungary', dialCode: '+36' },
+  { code: 'IS', name: 'Iceland', dialCode: '+354' },
+  { code: 'IN', name: 'India', dialCode: '+91' },
+  { code: 'ID', name: 'Indonesia', dialCode: '+62' },
+  { code: 'IR', name: 'Iran', dialCode: '+98' },
+  { code: 'IQ', name: 'Iraq', dialCode: '+964' },
+  { code: 'IE', name: 'Ireland', dialCode: '+353' },
+  { code: 'IL', name: 'Israel', dialCode: '+972' },
+  { code: 'IT', name: 'Italy', dialCode: '+39' },
+  { code: 'JM', name: 'Jamaica', dialCode: '+1-876' },
+  { code: 'JP', name: 'Japan', dialCode: '+81' },
+  { code: 'JO', name: 'Jordan', dialCode: '+962' },
+  { code: 'KZ', name: 'Kazakhstan', dialCode: '+7' },
+  { code: 'KE', name: 'Kenya', dialCode: '+254' },
+  { code: 'KI', name: 'Kiribati', dialCode: '+686' },
+  { code: 'XK', name: 'Kosovo', dialCode: '+383' },
+  { code: 'KW', name: 'Kuwait', dialCode: '+965' },
+  { code: 'KG', name: 'Kyrgyzstan', dialCode: '+996' },
+  { code: 'LA', name: 'Laos', dialCode: '+856' },
+  { code: 'LV', name: 'Latvia', dialCode: '+371' },
+  { code: 'LB', name: 'Lebanon', dialCode: '+961' },
+  { code: 'LS', name: 'Lesotho', dialCode: '+266' },
+  { code: 'LR', name: 'Liberia', dialCode: '+231' },
+  { code: 'LY', name: 'Libya', dialCode: '+218' },
+  { code: 'LI', name: 'Liechtenstein', dialCode: '+423' },
+  { code: 'LT', name: 'Lithuania', dialCode: '+370' },
+  { code: 'LU', name: 'Luxembourg', dialCode: '+352' },
+  { code: 'MO', name: 'Macau', dialCode: '+853' },
+  { code: 'MG', name: 'Madagascar', dialCode: '+261' },
+  { code: 'MW', name: 'Malawi', dialCode: '+265' },
+  { code: 'MY', name: 'Malaysia', dialCode: '+60' },
+  { code: 'MV', name: 'Maldives', dialCode: '+960' },
+  { code: 'ML', name: 'Mali', dialCode: '+223' },
+  { code: 'MT', name: 'Malta', dialCode: '+356' },
+  { code: 'MH', name: 'Marshall Islands', dialCode: '+692' },
+  { code: 'MQ', name: 'Martinique', dialCode: '+596' },
+  { code: 'MR', name: 'Mauritania', dialCode: '+222' },
+  { code: 'MU', name: 'Mauritius', dialCode: '+230' },
+  { code: 'YT', name: 'Mayotte', dialCode: '+262' },
+  { code: 'MX', name: 'Mexico', dialCode: '+52' },
+  { code: 'FM', name: 'Micronesia', dialCode: '+691' },
+  { code: 'MD', name: 'Moldova', dialCode: '+373' },
+  { code: 'MC', name: 'Monaco', dialCode: '+377' },
+  { code: 'MN', name: 'Mongolia', dialCode: '+976' },
+  { code: 'ME', name: 'Montenegro', dialCode: '+382' },
+  { code: 'MS', name: 'Montserrat', dialCode: '+1-664' },
+  { code: 'MA', name: 'Morocco', dialCode: '+212' },
+  { code: 'MZ', name: 'Mozambique', dialCode: '+258' },
+  { code: 'MM', name: 'Myanmar', dialCode: '+95' },
+  { code: 'NA', name: 'Namibia', dialCode: '+264' },
+  { code: 'NR', name: 'Nauru', dialCode: '+674' },
+  { code: 'NP', name: 'Nepal', dialCode: '+977' },
+  { code: 'NL', name: 'Netherlands', dialCode: '+31' },
+  { code: 'NC', name: 'New Caledonia', dialCode: '+687' },
+  { code: 'NZ', name: 'New Zealand', dialCode: '+64' },
+  { code: 'NI', name: 'Nicaragua', dialCode: '+505' },
+  { code: 'NE', name: 'Niger', dialCode: '+227' },
+  { code: 'NG', name: 'Nigeria', dialCode: '+234' },
+  { code: 'NU', name: 'Niue', dialCode: '+683' },
+  { code: 'KP', name: 'North Korea', dialCode: '+850' },
+  { code: 'MK', name: 'North Macedonia', dialCode: '+389' },
+  { code: 'MP', name: 'Northern Mariana Islands', dialCode: '+1-670' },
+  { code: 'NO', name: 'Norway', dialCode: '+47' },
+  { code: 'OM', name: 'Oman', dialCode: '+968' },
+  { code: 'PK', name: 'Pakistan', dialCode: '+92' },
+  { code: 'PW', name: 'Palau', dialCode: '+680' },
+  { code: 'PS', name: 'Palestine', dialCode: '+970' },
+  { code: 'PA', name: 'Panama', dialCode: '+507' },
+  { code: 'PG', name: 'Papua New Guinea', dialCode: '+675' },
+  { code: 'PY', name: 'Paraguay', dialCode: '+595' },
+  { code: 'PE', name: 'Peru', dialCode: '+51' },
+  { code: 'PH', name: 'Philippines', dialCode: '+63' },
+  { code: 'PL', name: 'Poland', dialCode: '+48' },
+  { code: 'PT', name: 'Portugal', dialCode: '+351' },
+  { code: 'PR', name: 'Puerto Rico', dialCode: '+1-787' },
+  { code: 'QA', name: 'Qatar', dialCode: '+974' },
+  { code: 'RE', name: 'Reunion', dialCode: '+262' },
+  { code: 'RO', name: 'Romania', dialCode: '+40' },
+  { code: 'RU', name: 'Russia', dialCode: '+7' },
+  { code: 'RW', name: 'Rwanda', dialCode: '+250' },
+  { code: 'WS', name: 'Samoa', dialCode: '+685' },
+  { code: 'SM', name: 'San Marino', dialCode: '+378' },
+  { code: 'ST', name: 'Sao Tome and Principe', dialCode: '+239' },
+  { code: 'SA', name: 'Saudi Arabia', dialCode: '+966' },
+  { code: 'SN', name: 'Senegal', dialCode: '+221' },
+  { code: 'RS', name: 'Serbia', dialCode: '+381' },
+  { code: 'SC', name: 'Seychelles', dialCode: '+248' },
+  { code: 'SL', name: 'Sierra Leone', dialCode: '+232' },
+  { code: 'SG', name: 'Singapore', dialCode: '+65' },
+  { code: 'SK', name: 'Slovakia', dialCode: '+421' },
+  { code: 'SI', name: 'Slovenia', dialCode: '+386' },
+  { code: 'SB', name: 'Solomon Islands', dialCode: '+677' },
+  { code: 'SO', name: 'Somalia', dialCode: '+252' },
+  { code: 'ZA', name: 'South Africa', dialCode: '+27' },
+  { code: 'KR', name: 'South Korea', dialCode: '+82' },
+  { code: 'SS', name: 'South Sudan', dialCode: '+211' },
+  { code: 'ES', name: 'Spain', dialCode: '+34' },
+  { code: 'LK', name: 'Sri Lanka', dialCode: '+94' },
+  { code: 'BL', name: 'St Barthelemy', dialCode: '+590' },
+  { code: 'SH', name: 'St Helena', dialCode: '+290' },
+  { code: 'KN', name: 'St Kitts and Nevis', dialCode: '+1-869' },
+  { code: 'LC', name: 'St Lucia', dialCode: '+1-758' },
+  { code: 'MF', name: 'St Martin', dialCode: '+590' },
+  { code: 'PM', name: 'St Pierre and Miquelon', dialCode: '+508' },
+  { code: 'VC', name: 'St Vincent and the Grenadines', dialCode: '+1-784' },
+  { code: 'SD', name: 'Sudan', dialCode: '+249' },
+  { code: 'SR', name: 'Suriname', dialCode: '+597' },
+  { code: 'SE', name: 'Sweden', dialCode: '+46' },
+  { code: 'CH', name: 'Switzerland', dialCode: '+41' },
+  { code: 'SY', name: 'Syria', dialCode: '+963' },
+  { code: 'TW', name: 'Taiwan', dialCode: '+886' },
+  { code: 'TJ', name: 'Tajikistan', dialCode: '+992' },
+  { code: 'TZ', name: 'Tanzania', dialCode: '+255' },
+  { code: 'TH', name: 'Thailand', dialCode: '+66' },
+  { code: 'TL', name: 'Timor-Leste', dialCode: '+670' },
+  { code: 'TG', name: 'Togo', dialCode: '+228' },
+  { code: 'TK', name: 'Tokelau', dialCode: '+690' },
+  { code: 'TO', name: 'Tonga', dialCode: '+676' },
+  { code: 'TT', name: 'Trinidad and Tobago', dialCode: '+1-868' },
+  { code: 'TN', name: 'Tunisia', dialCode: '+216' },
+  { code: 'TR', name: 'Turkey', dialCode: '+90' },
+  { code: 'TM', name: 'Turkmenistan', dialCode: '+993' },
+  { code: 'TC', name: 'Turks and Caicos Islands', dialCode: '+1-649' },
+  { code: 'TV', name: 'Tuvalu', dialCode: '+688' },
+  { code: 'UG', name: 'Uganda', dialCode: '+256' },
+  { code: 'UA', name: 'Ukraine', dialCode: '+380' },
+  { code: 'AE', name: 'United Arab Emirates', dialCode: '+971' },
+  { code: 'GB', name: 'United Kingdom', dialCode: '+44' },
+  { code: 'US', name: 'United States', dialCode: '+1' },
+  { code: 'UY', name: 'Uruguay', dialCode: '+598' },
+  { code: 'UZ', name: 'Uzbekistan', dialCode: '+998' },
+  { code: 'VU', name: 'Vanuatu', dialCode: '+678' },
+  { code: 'VA', name: 'Vatican City', dialCode: '+379' },
+  { code: 'VE', name: 'Venezuela', dialCode: '+58' },
+  { code: 'VN', name: 'Vietnam', dialCode: '+84' },
+  { code: 'VI', name: 'Virgin Islands, US', dialCode: '+1-340' },
+  { code: 'WF', name: 'Wallis and Futuna', dialCode: '+681' },
+  { code: 'YE', name: 'Yemen', dialCode: '+967' },
+  { code: 'ZM', name: 'Zambia', dialCode: '+260' },
+  { code: 'ZW', name: 'Zimbabwe', dialCode: '+263' }
+];
+
+export default function AirportTransferForm1({ onBack, onBookNow }) {
+  const fallbackAreas = [
+    { id: 'makati', name: 'Makati', prices: { 'Economy 4': '4200', 'Premium 6': '5500', 'Luxury 10': '7500' } },
+    { id: 'bgc', name: 'BGC', prices: { 'Economy 4': '4500', 'Premium 6': '5800', 'Luxury 10': '7800' } },
+    { id: 'las_pinas', name: 'Las PiÃ±as', prices: { 'Economy 4': '4000', 'Premium 6': '5300', 'Luxury 10': '7300' } },
+    { id: 'quezon_city', name: 'Quezon City', prices: { 'Economy 4': '4800', 'Premium 6': '6100', 'Luxury 10': '8100' } }
+  ];
+
   const [loading, setLoading] = useState(true);
   const [packages, setPackages] = useState([]);
   const [selectedPackage, setSelectedPackage] = useState(null);
@@ -19,7 +263,14 @@ export default function AirportTransferForm1({ onBack }) {
   const [selectedTerminal, setSelectedTerminal] = useState('T1');
   const [pickupLocation, setPickupLocation] = useState('');
   const [dropoffLocation, setDropoffLocation] = useState('');
+  const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
+  const [showDropoffSuggestions, setShowDropoffSuggestions] = useState(false);
+  const [pickupPredictions, setPickupPredictions] = useState([]);
+  const [dropoffPredictions, setDropoffPredictions] = useState([]);
+  const [pickupPredictionsLoading, setPickupPredictionsLoading] = useState(false);
+  const [dropoffPredictionsLoading, setDropoffPredictionsLoading] = useState(false);
   const [selectedArea, setSelectedArea] = useState('');
+  const [areaError, setAreaError] = useState('');
   const [availableAreas, setAvailableAreas] = useState([]);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -41,20 +292,59 @@ export default function AirportTransferForm1({ onBack }) {
   // Validation errors
   const [dateError, setDateError] = useState('');
   const [timeError, setTimeError] = useState('');
+  const [showCountryCodePicker, setShowCountryCodePicker] = useState(false);
+  const [countryCodeSearch, setCountryCodeSearch] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   // Passenger details state
   const [passengerDetails, setPassengerDetails] = useState({
     fullName: '',
+    countryIsoCode: 'PH',
+    countryCode: '+63',
     contactNumber: '',
     email: '',
     numPassengers: '',
+    numLuggage: '',
     specialRequests: ''
   });
 
   // Load packages from Firebase
   useEffect(() => {
     loadPackages();
+    loadAreas();
   }, []);
+
+  useEffect(() => {
+    if (tripType !== 'departure') return;
+
+    const query = pickupLocation.trim();
+    if (query.length < 3) {
+      setPickupPredictions([]);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      fetchPlacePredictions(query, 'pickup');
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [pickupLocation, tripType]);
+
+  useEffect(() => {
+    if (tripType !== 'arrival') return;
+
+    const query = dropoffLocation.trim();
+    if (query.length < 3) {
+      setDropoffPredictions([]);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      fetchPlacePredictions(query, 'dropoff');
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [dropoffLocation, tripType]);
 
   const loadPackages = async () => {
     try {
@@ -106,7 +396,7 @@ export default function AirportTransferForm1({ onBack }) {
   };
 
   // Load areas based on location
-  const loadAreas = async (locationText) => {
+  const loadAreas = async () => {
     try {
       const dbRef = ref(database);
       const snapshot = await get(child(dbRef, '/rates/airportTransfer'));
@@ -118,6 +408,7 @@ export default function AirportTransferForm1({ onBack }) {
           if (ratesData[location].areas) {
             Object.keys(ratesData[location].areas).forEach(areaKey => {
               areas.push({
+                key: `${location}:${areaKey}`,
                 id: areaKey,
                 name: ratesData[location].areas[areaKey].name || areaKey,
                 location: location,
@@ -141,6 +432,7 @@ export default function AirportTransferForm1({ onBack }) {
       }
     } catch (error) {
       console.error('Error loading areas:', error);
+      setAvailableAreas(fallbackAreas);
     }
   };
 
@@ -149,10 +441,14 @@ export default function AirportTransferForm1({ onBack }) {
     if (selectedPackage && selectedArea) {
       calculatePrice();
     }
-  }, [selectedPackage, selectedArea]);
+  }, [selectedPackage, selectedArea, availableAreas]);
+
+  useEffect(() => {
+    checkItineraryComplete(pickupLocation, dropoffLocation, date, time);
+  }, [passengerDetails.numPassengers, passengerDetails.numLuggage]);
 
   const calculatePrice = () => {
-    const area = availableAreas.find(a => a.id === selectedArea);
+    const area = availableAreas.find(a => a.key === selectedArea || a.id === selectedArea);
     if (!area || !selectedPackage) return;
 
     const packageName = selectedPackage.packageName;
@@ -302,7 +598,12 @@ export default function AirportTransferForm1({ onBack }) {
     return passengerDetails.fullName.trim() !== '' &&
            passengerDetails.contactNumber.trim() !== '' &&
            passengerDetails.email.trim() !== '' &&
-           passengerDetails.numPassengers.trim() !== '';
+           validatePhoneNumber(false).isValid;
+  };
+
+  const areTripCapacityDetailsComplete = () => {
+    return passengerDetails.numPassengers.trim() !== '' &&
+           passengerDetails.numLuggage.trim() !== '';
   };
 
   const isPackageSelected = () => {
@@ -310,7 +611,7 @@ export default function AirportTransferForm1({ onBack }) {
   };
 
   const isFormComplete = () => {
-    return isItineraryComplete && isPackageSelected() && calculatedPrice && arePassengerDetailsComplete();
+    return isItineraryComplete && areTripCapacityDetailsComplete() && isPackageSelected() && calculatedPrice && arePassengerDetailsComplete();
   };
 
   const checkItineraryComplete = (pickup, dropoff, dateVal, timeVal) => {
@@ -318,19 +619,14 @@ export default function AirportTransferForm1({ onBack }) {
     
     if (tripType === 'arrival') {
       locationComplete = dropoff.trim() !== '';
-      if (dropoff.trim() !== '') {
-        loadAreas(dropoff);
-      }
     } else {
       locationComplete = pickup.trim() !== '';
-      if (pickup.trim() !== '') {
-        loadAreas(pickup);
-      }
     }
     
     const isDateValid = dateVal.trim() !== '' && validateDate(dateVal);
     const isTimeValid = timeVal.trim() !== '' && validateTime(timeVal);
-    const isComplete = locationComplete && isDateValid && isTimeValid;
+    const capacityComplete = areTripCapacityDetailsComplete();
+    const isComplete = locationComplete && isDateValid && isTimeValid && capacityComplete;
     
     setIsItineraryComplete(isComplete);
     if (isComplete && !isPackageExpanded) {
@@ -342,7 +638,12 @@ export default function AirportTransferForm1({ onBack }) {
     setTripType(type);
     setPickupLocation('');
     setDropoffLocation('');
+    setPickupPredictions([]);
+    setDropoffPredictions([]);
+    setShowPickupSuggestions(false);
+    setShowDropoffSuggestions(false);
     setSelectedArea('');
+    setAreaError('');
     setSelectedPackage(null);
     setCalculatedPrice(null);
     checkItineraryComplete('', '', date, time);
@@ -364,13 +665,234 @@ export default function AirportTransferForm1({ onBack }) {
   };
 
   const handlePickupChange = (text) => {
+    const matchedArea = findAreaFromAddress(text);
     setPickupLocation(text);
+    updateMatchedArea(matchedArea);
+    setAreaError('');
+    setShowPickupSuggestions(text.trim().length > 0);
     checkItineraryComplete(text, dropoffLocation, date, time);
   };
 
   const handleDropoffChange = (text) => {
+    const matchedArea = findAreaFromAddress(text);
     setDropoffLocation(text);
+    updateMatchedArea(matchedArea);
+    setAreaError('');
+    setShowDropoffSuggestions(text.trim().length > 0);
     checkItineraryComplete(pickupLocation, text, date, time);
+  };
+
+  const updateMatchedArea = (matchedArea) => {
+    const nextSelectedArea = matchedArea?.key || matchedArea?.id || '';
+    if (nextSelectedArea !== selectedArea) {
+      setSelectedPackage(null);
+      setCalculatedPrice(null);
+      setOriginalPrice(null);
+      setDiscountInfo(null);
+      setPassengerDetails({
+        ...passengerDetails,
+        numPassengers: '',
+        numLuggage: ''
+      });
+    }
+    setSelectedArea(nextSelectedArea);
+  };
+
+  const normalizeText = (value) => {
+    return value
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/_/g, ' ')
+      .replace(/[^a-zA-Z0-9\s]/g, ' ')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const normalizeAreaName = (value) => {
+    return normalizeText(value)
+      .replace(/\bmetro manila\b/g, '')
+      .replace(/\bmetropolitan manila\b/g, '')
+      .replace(/\bnational capital region\b/g, '')
+      .replace(/\bncr\b/g, '')
+      .replace(/\bcity of\b/g, '')
+      .replace(/\bcity\b/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const isBroadMetroManilaArea = (value) => {
+    const normalizedValue = normalizeText(value);
+    return [
+      'metro manila',
+      'metropolitan manila',
+      'national capital region',
+      'ncr'
+    ].includes(normalizedValue);
+  };
+
+  const textHasArea = (text, area) => {
+    if (!area) return false;
+    const normalizedText = ` ${normalizeAreaName(text)} `;
+    const normalizedArea = normalizeAreaName(area);
+    return normalizedArea.length > 1 && normalizedText.includes(` ${normalizedArea} `);
+  };
+
+  const stripBroadRegionText = (value) => {
+    return normalizeText(value)
+      .replace(/\bmetro manila\b/g, '')
+      .replace(/\bmetropolitan manila\b/g, '')
+      .replace(/\bnational capital region\b/g, '')
+      .replace(/\bncr\b/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const findAreaFromAddress = (address, options = {}) => {
+    const normalizedAddress = normalizeAreaName(address);
+    return availableAreas.find((area) => {
+      const areaName = normalizeAreaName(area.name || '');
+      const areaId = normalizeAreaName(area.id || '');
+      return Boolean(
+        textHasArea(normalizedAddress, areaName) ||
+        textHasArea(normalizedAddress, areaId) ||
+        (options.allowLocationMatch && textHasArea(normalizedAddress, area.location))
+      );
+    });
+  };
+
+  const getGeoapifyAreaCandidates = (place) => {
+    const properties = place.properties || {};
+    const primaryCandidates = [
+      properties.city,
+      properties.municipality
+    ].filter((candidate) => candidate && !isBroadMetroManilaArea(candidate));
+
+    const secondaryCandidates = [
+      properties.county,
+      properties.state_district
+    ].filter((candidate) => candidate && !isBroadMetroManilaArea(candidate));
+
+    return {
+      primaryCandidates,
+      secondaryCandidates,
+      formattedCandidate: stripBroadRegionText(properties.formatted || '')
+    };
+  };
+
+  const findAreaFromPlace = (place) => {
+    const { primaryCandidates, secondaryCandidates, formattedCandidate } = getGeoapifyAreaCandidates(place);
+
+    for (const candidate of primaryCandidates) {
+      const matchedArea = findAreaFromAddress(candidate);
+      if (matchedArea) return matchedArea;
+    }
+
+    if (primaryCandidates.length > 0) {
+      return null;
+    }
+
+    for (const candidate of secondaryCandidates) {
+      const matchedArea = findAreaFromAddress(candidate);
+      if (matchedArea) return matchedArea;
+    }
+
+    return formattedCandidate ? findAreaFromAddress(formattedCandidate) : null;
+  };
+
+  const fetchPlacePredictions = async (query, field) => {
+    if (!GEOAPIFY_API_KEY) {
+      console.warn('Missing EXPO_PUBLIC_GEOAPIFY_API_KEY for place predictions.');
+      return;
+    }
+
+    const setLoading = field === 'pickup' ? setPickupPredictionsLoading : setDropoffPredictionsLoading;
+    const setPredictions = field === 'pickup' ? setPickupPredictions : setDropoffPredictions;
+
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        text: query,
+        apiKey: GEOAPIFY_API_KEY,
+        filter: 'countrycode:ph',
+        lang: 'en',
+        limit: '6',
+        format: 'json'
+      });
+      const response = await fetch(`https://api.geoapify.com/v1/geocode/autocomplete?${params.toString()}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setPredictions((data.results || []).slice(0, 6));
+      } else {
+        setPredictions([]);
+        console.warn('Geoapify autocomplete error:', data.statusCode || response.status, data.message);
+      }
+    } catch (error) {
+      console.error('Error loading place predictions:', error);
+      setPredictions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLocationSuggestionSelect = (prediction, field) => {
+    const selectedAddress = prediction.formatted;
+    const matchedArea = findAreaFromPlace({ properties: prediction });
+
+    updateMatchedArea(matchedArea);
+    setAreaError(matchedArea ? '' : 'Sorry, this destination is outside the available airport transfer areas.');
+
+    if (field === 'pickup') {
+      setPickupLocation(selectedAddress);
+      setPickupPredictions([]);
+      setShowPickupSuggestions(false);
+      checkItineraryComplete(selectedAddress, dropoffLocation, date, time);
+    } else {
+      setDropoffLocation(selectedAddress);
+      setDropoffPredictions([]);
+      setShowDropoffSuggestions(false);
+      checkItineraryComplete(pickupLocation, selectedAddress, date, time);
+    }
+  };
+
+  const renderLocationSuggestions = (field) => {
+    const suggestions = field === 'pickup' ? pickupPredictions : dropoffPredictions;
+    const isLoading = field === 'pickup' ? pickupPredictionsLoading : dropoffPredictionsLoading;
+    const isVisible = field === 'pickup' ? showPickupSuggestions : showDropoffSuggestions;
+
+    if (!isVisible || (!isLoading && suggestions.length === 0)) return null;
+
+    return (
+      <View style={styles.suggestionsContainer}>
+        <ScrollView
+          style={styles.suggestionsScrollView}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled={true}
+        >
+          {isLoading && (
+            <View style={styles.suggestionItem}>
+              <ActivityIndicator size="small" color="#ff4d4d" />
+              <Text style={styles.suggestionText}>Searching places...</Text>
+            </View>
+          )}
+          {!isLoading && suggestions.map((prediction, index) => (
+            <Pressable
+              key={prediction.place_id || `${prediction.lat}-${prediction.lon}-${prediction.formatted}`}
+              style={[
+                styles.suggestionItem,
+                index === suggestions.length - 1 && styles.suggestionItemLast
+              ]}
+              onPress={() => handleLocationSuggestionSelect(prediction, field)}
+            >
+              <Ionicons name="location-outline" size={16} color="#666" />
+              <Text style={styles.suggestionText}>{prediction.formatted}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+    );
   };
 
   const confirmDateSelection = () => {
@@ -403,10 +925,6 @@ export default function AirportTransferForm1({ onBack }) {
 
   const handlePackageSelect = (pkg) => {
     setSelectedPackage(pkg);
-    setPassengerDetails({
-      ...passengerDetails,
-      numPassengers: '' // Reset passenger count when package changes
-    });
     
     if (pkg && !isPassengerExpanded) {
       setIsPassengerExpanded(true);
@@ -414,18 +932,112 @@ export default function AirportTransferForm1({ onBack }) {
   };
 
   const handlePassengerChange = (field, value) => {
-    if (field === 'numPassengers') {
-      const num = parseInt(value);
-      if (selectedPackage && num > selectedPackage.maxPax) {
-        Alert.alert('Maximum Passengers Exceeded', `This package can only accommodate up to ${selectedPackage.maxPax} passengers.`);
-        return;
-      }
+    if (field === 'numPassengers' || field === 'numLuggage') {
+      const digitsOnly = value.replace(/\D/g, '');
+
+      setPassengerDetails({
+        ...passengerDetails,
+        [field]: digitsOnly
+      });
+      setSelectedPackage(null);
+      setCalculatedPrice(null);
+      setOriginalPrice(null);
+      setDiscountInfo(null);
+      return;
     }
+
+    if (field === 'contactNumber') {
+      const digitsOnly = value.replace(/\D/g, '');
+      setPassengerDetails({
+        ...passengerDetails,
+        contactNumber: digitsOnly
+      });
+      setPhoneError('');
+      return;
+    }
+
     setPassengerDetails({
       ...passengerDetails,
       [field]: value
     });
   };
+
+  const handleCountryCodeSelect = (country) => {
+    setPassengerDetails({
+      ...passengerDetails,
+      countryIsoCode: country.code,
+      countryCode: country.dialCode
+    });
+    setPhoneError('');
+    setShowCountryCodePicker(false);
+    setCountryCodeSearch('');
+  };
+
+  const validatePhoneNumber = (shouldSetError = true) => {
+    const localNumber = passengerDetails.contactNumber.trim();
+
+    if (!localNumber) {
+      if (shouldSetError) setPhoneError('Contact number is required');
+      return { isValid: false, formattedNumber: '' };
+    }
+
+    const phoneNumber = parsePhoneNumberFromString(localNumber, passengerDetails.countryIsoCode);
+
+    if (!phoneNumber || !phoneNumber.isValid()) {
+      if (shouldSetError) {
+        setPhoneError(`Enter a valid ${passengerDetails.countryCode} phone number`);
+      }
+      return { isValid: false, formattedNumber: '' };
+    }
+
+    if (shouldSetError) setPhoneError('');
+    return {
+      isValid: true,
+      formattedNumber: phoneNumber.number
+    };
+  };
+
+  const filteredCountryCodes = countryCodes.filter((country) => {
+    const query = countryCodeSearch.trim().toLowerCase();
+    if (!query) return true;
+
+    return (
+      country.name.toLowerCase().includes(query) ||
+      country.code.toLowerCase().includes(query) ||
+      country.dialCode.includes(query)
+    );
+  });
+
+  const getFilteredPackages = () => {
+    const requestedPassengers = parseInt(passengerDetails.numPassengers, 10);
+    const requestedLuggage = parseInt(passengerDetails.numLuggage, 10);
+
+    if (!requestedPassengers || !requestedLuggage) return [];
+
+    return packages
+      .filter((pkg) => {
+        return requestedPassengers <= Number(pkg.maxPax || 0) &&
+               requestedLuggage <= Number(pkg.maxLuggage || 0);
+      })
+      .sort((a, b) => {
+        const parsePackageName = (pkg) => {
+          const name = pkg.packageName || '';
+          const letterPart = name.replace(/\d+/g, '').trim().toLowerCase();
+          const numberMatch = name.match(/\d+/);
+          const numberPart = numberMatch ? parseInt(numberMatch[0], 10) : Number.MAX_SAFE_INTEGER;
+          return { letterPart, numberPart };
+        };
+
+        const packageA = parsePackageName(a);
+        const packageB = parsePackageName(b);
+        const letterComparison = packageA.letterPart.localeCompare(packageB.letterPart);
+
+        if (letterComparison !== 0) return letterComparison;
+        return packageA.numberPart - packageB.numberPart;
+      });
+  };
+
+  const filteredPackages = getFilteredPackages();
 
   const getPickupLabel = () => {
     return tripType === 'arrival' ? 'Pickup Location (Airport)' : 'Pickup Location (Your Location)';
@@ -456,8 +1068,11 @@ export default function AirportTransferForm1({ onBack }) {
   };
 
   const handleBookNow = () => {
-    if (isFormComplete()) {
+    const phoneValidation = validatePhoneNumber();
+
+    if (isFormComplete() && phoneValidation.isValid) {
       const bookingData = {
+        serviceType: 'airport',
         tripType,
         selectedAirport,
         selectedTerminal,
@@ -479,19 +1094,13 @@ export default function AirportTransferForm1({ onBack }) {
         },
         selectedArea,
         passengerDetails,
+        contactNumber: phoneValidation.formattedNumber,
         bookingStatus: 'pending',
         timestamp: new Date().toISOString()
       };
       
       console.log('Booking details:', bookingData);
-      Alert.alert(
-        'Booking Ready!',
-        `Package: ${selectedPackage.packageName}\nPrice: ₱${calculatedPrice}\n\nProceed to payment?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Proceed', onPress: () => console.log('Proceed to payment') }
-        ]
-      );
+      onBookNow?.(bookingData);
     }
   };
 
@@ -597,13 +1206,17 @@ export default function AirportTransferForm1({ onBack }) {
             <Text style={styles.readOnlyText}>{getPickupValue()}</Text>
           </View>
         ) : (
-          <TextInput 
-            style={styles.input}
-            placeholder="Enter your pickup location"
-            placeholderTextColor="#999"
-            value={pickupLocation}
-            onChangeText={handlePickupChange}
-          />
+          <View style={styles.autocompleteWrapper}>
+            <TextInput 
+              style={styles.input}
+              placeholder="Enter your pickup location"
+              placeholderTextColor="#999"
+              value={pickupLocation}
+              onChangeText={handlePickupChange}
+              onFocus={() => setShowPickupSuggestions(pickupLocation.trim().length > 0)}
+            />
+            {renderLocationSuggestions('pickup')}
+          </View>
         )}
 
         {/* Dropoff Location */}
@@ -613,14 +1226,19 @@ export default function AirportTransferForm1({ onBack }) {
             <Text style={styles.readOnlyText}>{getDropoffValue()}</Text>
           </View>
         ) : (
-          <TextInput 
-            style={styles.input}
-            placeholder="Enter your destination"
-            placeholderTextColor="#999"
-            value={dropoffLocation}
-            onChangeText={handleDropoffChange}
-          />
+          <View style={styles.autocompleteWrapper}>
+            <TextInput 
+              style={styles.input}
+              placeholder="Enter your destination"
+              placeholderTextColor="#999"
+              value={dropoffLocation}
+              onChangeText={handleDropoffChange}
+              onFocus={() => setShowDropoffSuggestions(dropoffLocation.trim().length > 0)}
+            />
+            {renderLocationSuggestions('dropoff')}
+          </View>
         )}
+        {areaError ? <Text style={styles.errorText}>{areaError}</Text> : null}
 
         {/* Date Field - Picker Button */}
         <Text style={styles.label}>Date (MM-DD-YYYY)</Text>
@@ -640,30 +1258,29 @@ export default function AirportTransferForm1({ onBack }) {
         </Pressable>
         {timeError ? <Text style={styles.errorText}>{timeError}</Text> : null}
         <Text style={styles.hintText}>Example: 14:30 = 2:30 PM Philippine Time</Text>
-      </View>
 
-      {/* Area Selection - Shown after itinerary complete */}
-      {isItineraryComplete && availableAreas.length > 0 && (
-        <View style={styles.areaSection}>
-          <Text style={styles.sectionTitle}>Select Your Area</Text>
-          <Text style={styles.hintText}>
-            Please select the area for your {tripType === 'arrival' ? 'destination' : 'pickup'} location
-          </Text>
-          <View style={styles.areaGroup}>
-            {availableAreas.map((area) => (
-              <Pressable
-                key={area.id}
-                style={[styles.areaOption, selectedArea === area.id && styles.areaSelected]}
-                onPress={() => setSelectedArea(area.id)}
-              >
-                <Text style={[styles.areaLabel, selectedArea === area.id && styles.areaLabelSelected]}>
-                  {area.name}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      )}
+        <Text style={styles.label}>Number of Passengers *</Text>
+        <TextInput 
+          style={styles.input}
+          placeholder="Enter number of passengers"
+          placeholderTextColor="#999"
+          keyboardType="numeric"
+          inputMode="numeric"
+          value={passengerDetails.numPassengers}
+          onChangeText={(text) => handlePassengerChange('numPassengers', text)}
+        />
+
+        <Text style={styles.label}>Number of Luggages *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter number of luggages"
+          placeholderTextColor="#999"
+          keyboardType="numeric"
+          inputMode="numeric"
+          value={passengerDetails.numLuggage}
+          onChangeText={(text) => handlePassengerChange('numLuggage', text)}
+        />
+      </View>
 
       {/* Package Selection Section - Collapsible */}
       {isItineraryComplete && selectedArea && (
@@ -679,7 +1296,13 @@ export default function AirportTransferForm1({ onBack }) {
 
           {isPackageExpanded && (
             <View style={styles.packageContainer}>
-              {packages.map((pkg) => (
+              {filteredPackages.length === 0 ? (
+                <View style={styles.infoMessage}>
+                  <Text style={styles.infoMessageText}>
+                    No packages can accommodate the selected passengers and luggages.
+                  </Text>
+                </View>
+              ) : filteredPackages.map((pkg) => (
                 <Pressable
                   key={pkg.id}
                   style={[
@@ -768,15 +1391,27 @@ export default function AirportTransferForm1({ onBack }) {
                 onChangeText={(text) => handlePassengerChange('fullName', text)}
               />
               
-              <Text style={styles.label}>Contact Number *</Text>
-              <TextInput 
-                style={styles.input}
-                placeholder="Enter your contact number"
-                placeholderTextColor="#999"
-                keyboardType="phone-pad"
-                value={passengerDetails.contactNumber}
-                onChangeText={(text) => handlePassengerChange('contactNumber', text)}
-              />
+              <Text style={styles.label}>WhatsApp or  Contact Number *</Text>
+              <View style={styles.phoneInputRow}>
+                <Pressable
+                  style={styles.countryCodeButton}
+                  onPress={() => setShowCountryCodePicker(true)}
+                >
+                  <Text style={styles.countryCodeText}>{passengerDetails.countryCode}</Text>
+                  <Ionicons name="chevron-down" size={16} color="#555" />
+                </Pressable>
+                <TextInput 
+                  style={[styles.input, styles.phoneNumberInput]}
+                  placeholder="Enter your contact number"
+                  placeholderTextColor="#999"
+                  keyboardType="phone-pad"
+                  inputMode="numeric"
+                  value={passengerDetails.contactNumber}
+                  onChangeText={(text) => handlePassengerChange('contactNumber', text)}
+                  onBlur={() => validatePhoneNumber()}
+                />
+              </View>
+              {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
               
               <Text style={styles.label}>Email Address *</Text>
               <TextInput 
@@ -786,18 +1421,6 @@ export default function AirportTransferForm1({ onBack }) {
                 keyboardType="email-address"
                 value={passengerDetails.email}
                 onChangeText={(text) => handlePassengerChange('email', text)}
-              />
-              
-              <Text style={styles.label}>
-                Number of Passengers * (Max: {selectedPackage?.maxPax})
-              </Text>
-              <TextInput 
-                style={styles.input}
-                placeholder={`Number of passengers (max ${selectedPackage?.maxPax})`}
-                placeholderTextColor="#999"
-                keyboardType="numeric"
-                value={passengerDetails.numPassengers}
-                onChangeText={(text) => handlePassengerChange('numPassengers', text)}
               />
               
               <Text style={styles.label}>Special Requests (Optional)</Text>
@@ -939,6 +1562,55 @@ export default function AirportTransferForm1({ onBack }) {
                 <Text style={styles.modalButtonTextConfirm}>Confirm</Text>
               </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Country Code Picker Modal */}
+      <Modal
+        visible={showCountryCodePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCountryCodePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Country Code</Text>
+            <TextInput
+              style={styles.countryCodeSearchInput}
+              placeholder="Search country or code"
+              placeholderTextColor="#999"
+              value={countryCodeSearch}
+              onChangeText={setCountryCodeSearch}
+            />
+            <ScrollView style={styles.countryCodeList}>
+              {filteredCountryCodes.map((country) => (
+                <Pressable
+                  key={`${country.code}-${country.dialCode}`}
+                  style={[
+                    styles.countryCodeOption,
+                    passengerDetails.countryIsoCode === country.code && styles.countryCodeOptionSelected
+                  ]}
+                  onPress={() => handleCountryCodeSelect(country)}
+                >
+                  <Text style={styles.countryCodeOptionText}>
+                    {country.name}
+                  </Text>
+                  <Text style={styles.countryCodeOptionDialCode}>
+                    {country.dialCode}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Pressable
+              style={styles.modalButtonCancel}
+              onPress={() => {
+                setShowCountryCodePicker(false);
+                setCountryCodeSearch('');
+              }}
+            >
+              <Text style={styles.modalButtonText}>Cancel</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>

@@ -9,10 +9,19 @@ import AirportTransferForm1 from '../components/booking/AirportTransferForm1';
 import SelfDriveForm1 from '../components/booking/SelfDriveForm1';
 import MetroForm1 from '../components/booking/MetroForm1';
 import ProvincialForm1 from '../components/booking/ProvincialForm1';
+import BookingDosDonts from '../components/booking/BookingDosDonts';
 
 export default function BookTrip() {
 
   const [activeForm, setActiveForm] = useState(null);
+  const [pendingBooking, setPendingBooking] = useState(null);
+
+  const serviceNames = {
+    airport: 'Airport Transfer',
+    selfdrive: 'Self Drive',
+    metro: 'Metro Manila Driver',
+    provincial: 'Provincial Driver',
+  };
 
   const renderServiceCard = ({ title, description, icon, image, formType }) => {
     return (
@@ -39,9 +48,25 @@ export default function BookTrip() {
   };
 
   const renderActiveForm = () => {
+    if (pendingBooking) {
+      return (
+        <BookingDosDonts
+          serviceName={serviceNames[pendingBooking.serviceType] || 'Booking'}
+          bookingData={pendingBooking}
+          onBack={() => setPendingBooking(null)}
+          onContinue={() => console.log('Continue booking:', pendingBooking)}
+        />
+      );
+    }
+
     switch (activeForm) {
       case 'airport':
-        return <AirportTransferForm1 onBack={() => setActiveForm(null)} />;
+        return (
+          <AirportTransferForm1
+            onBack={() => setActiveForm(null)}
+            onBookNow={(bookingData) => setPendingBooking(bookingData)}
+          />
+        );
 
       case 'selfdrive':
         return <SelfDriveForm1 onBack={() => setActiveForm(null)} />;
