@@ -1,16 +1,19 @@
 // screens/BookingReceipt.js
-import { View, Text, ScrollView, Pressable, Share, Alert } from 'react-native';
+import { View, Text, ScrollView, Pressable, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useRef } from 'react';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
 import { styles } from '../styles/BookingReceipt.styles';
+import AppModal from '../components/AppModal';
 
 export default function BookingReceipt({ route, navigation }) {
   const { booking } = route.params || {};
   const [isGenerating, setIsGenerating] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  const [isSuccess, setIsSuccess] = useState(false);
   const viewShotRef = useRef(null);
 
   if (!booking) {
@@ -25,6 +28,12 @@ export default function BookingReceipt({ route, navigation }) {
       </SafeAreaView>
     );
   }
+
+  const showModal = (message, isSuccessMessage = false) => {
+    setModalMessage(message);
+    setIsSuccess(isSuccessMessage);
+    setModalVisible(true);
+  };
 
   const formatPrice = (price) => {
     if (!price) return '₱0';
@@ -104,42 +113,41 @@ Thank you for choosing OLStar! ✨
         message: receiptText,
         title: `OLStar Booking Receipt - ${booking.bookingId}`
       });
+      showModal('Receipt shared successfully!', true);
     } catch (error) {
       console.error('Error sharing receipt:', error);
-      Alert.alert('Error', 'Failed to share receipt');
+      showModal('Failed to share receipt. Please try again.', false);
     }
   };
 
   const handleDownloadImage = async () => {
     if (!viewShotRef.current) {
-      Alert.alert('Error', 'Unable to capture receipt');
+      showModal('Unable to capture receipt. Please try again.', false);
       return;
     }
 
     try {
       setIsGenerating(true);
       
-      // Capture the view as an image
       const uri = await viewShotRef.current.capture();
       
-      // Check if sharing is available
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, {
           mimeType: 'image/png',
           dialogTitle: 'Save your receipt',
           UTI: 'image/png'
         });
-        Alert.alert('Success', 'Receipt image is ready! You can now save or share it.');
+        showModal('Receipt image ready! You can now save or share it.', true);
       } else {
-        // Fallback to regular share
         await Share.share({
           url: uri,
           title: `OLStar Receipt - ${booking.bookingId}`,
         });
+        showModal('Receipt image ready!', true);
       }
     } catch (error) {
       console.error('Error generating receipt image:', error);
-      Alert.alert('Error', 'Failed to generate receipt image. Please try again.');
+      showModal('Failed to generate receipt image. Please try again.', false);
     } finally {
       setIsGenerating(false);
     }
@@ -147,14 +155,19 @@ Thank you for choosing OLStar! ✨
 
   return (
     <SafeAreaView style={styles.container}>
+      <AppModal
+        visible={modalVisible}
+        message={modalMessage}
+        isRedirecting={false}
+        onClose={() => setModalVisible(false)}
+      />
+
       <ScrollView contentContainerStyle={styles.content}>
-        {/* ViewShot wrapper to capture the receipt */}
         <ViewShot 
           ref={viewShotRef}
           options={{ format: 'png', quality: 0.9 }}
           style={styles.receiptContainer}
         >
-          {/* Header */}
           <View style={styles.header}>
             <View style={styles.successIcon}>
               <Ionicons name="checkmark-circle" size={60} color="#4caf50" />
@@ -165,7 +178,6 @@ Thank you for choosing OLStar! ✨
             </Text>
           </View>
 
-          {/* Booking ID Card */}
           <View style={styles.bookingIdCard}>
             <Text style={styles.bookingIdLabel}>BOOKING ID</Text>
             <Text style={styles.bookingIdValue}>{booking.bookingId}</Text>
@@ -174,7 +186,6 @@ Thank you for choosing OLStar! ✨
             </View>
           </View>
 
-          {/* Service Details */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Service Details</Text>
             <View style={styles.detailRow}>
@@ -207,7 +218,6 @@ Thank you for choosing OLStar! ✨
             )}
           </View>
 
-          {/* Passenger Details */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Passenger Details</Text>
             <View style={styles.detailRow}>
@@ -231,7 +241,6 @@ Thank you for choosing OLStar! ✨
             </View>
           </View>
 
-          {/* Payment Summary */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Payment Summary</Text>
             <View style={styles.priceRow}>
@@ -259,7 +268,6 @@ Thank you for choosing OLStar! ✨
             </View>
           </View>
 
-          {/* Important Notes */}
           <View style={styles.notesSection}>
             <Text style={styles.notesTitle}>Important Notes 📝</Text>
             <View style={styles.noteItem}>
@@ -277,7 +285,6 @@ Thank you for choosing OLStar! ✨
           </View>
         </ViewShot>
 
-        {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           <Pressable style={styles.shareButton} onPress={handleShare}>
             <Ionicons name="share-social-outline" size={20} color="#fff" />
@@ -303,7 +310,6 @@ Thank you for choosing OLStar! ✨
           </Pressable>
         </View>
 
-        {/* Home Button */}
         <Pressable 
           style={styles.homeButton}
           onPress={() => navigation.navigate('CustomerHome')}
