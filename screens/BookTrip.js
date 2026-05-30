@@ -3,6 +3,7 @@ import { View, Text, Pressable, ScrollView, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
+import { useNavigation } from '@react-navigation/native'; // Add this import
 import { styles } from '../styles/BookTrip.styles';
 
 // Import reusable forms
@@ -14,6 +15,7 @@ import BookingDosDonts from '../components/booking/BookingDosDonts';
 import PaymentPortal from '../components/booking/PaymentPortal';
 
 export default function BookTrip() {
+  const navigation = useNavigation(); // Add this line
   const [activeForm, setActiveForm] = useState(null);
   const [pendingBooking, setPendingBooking] = useState(null);
   const [showPayment, setShowPayment] = useState(false);
@@ -50,25 +52,11 @@ export default function BookTrip() {
 
   const handlePaymentComplete = (completedBooking) => {
     console.log('Payment completed:', completedBooking);
-    Alert.alert(
-      'Booking Confirmed!',
-      `Your ${serviceNames[completedBooking.serviceType] || 'booking'} has been confirmed.\n\nBooking ID: ${completedBooking.bookingId}\n\nWe've sent the details to your email.`,
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            setActiveForm(null);
-            setPendingBooking(null);
-            setShowPayment(false);
-            setSavedFormData(null);
-          }
-        }
-      ]
-    );
+    // Navigate to receipt screen
+    navigation.replace('BookingReceipt', { booking: completedBooking });
   };
 
   const handleFormSubmit = (bookingData) => {
-    // Add a timestamp to ensure unique key when going back
     const dataWithTimestamp = {
       ...bookingData,
       timestamp: Date.now()
@@ -95,7 +83,7 @@ export default function BookTrip() {
     if (pendingBooking) {
       return (
         <BookingDosDonts
-          key={`dosdonts-${Date.now()}`} // Add unique key to force re-render
+          key={`dosdonts-${Date.now()}`}
           serviceName={serviceNames[pendingBooking.serviceType] || 'Booking'}
           bookingData={pendingBooking}
           onBack={handleBackFromDosDonts}
@@ -108,7 +96,7 @@ export default function BookTrip() {
       case 'airport':
         return (
           <AirportTransferForm1
-            key={`airport-form-${savedFormData?.timestamp || Date.now()}`} // Add timestamp to force re-render
+            key={`airport-form-${savedFormData?.timestamp || Date.now()}`}
             initialData={savedFormData}
             onBack={() => setActiveForm(null)}
             onBookNow={handleFormSubmit}
@@ -118,7 +106,7 @@ export default function BookTrip() {
       case 'selfdrive':
         return (
           <SelfDriveForm1
-            key={`selfdrive-form-${savedFormData?.timestamp || Date.now()}`} // Add timestamp to force re-render
+            key={`selfdrive-form-${savedFormData?.timestamp || Date.now()}`}
             initialData={savedFormData}
             onBack={() => setActiveForm(null)}
             onBookNow={handleFormSubmit}
@@ -128,7 +116,7 @@ export default function BookTrip() {
       case 'metro':
         return (
           <MetroForm1
-            key={`metro-form-${savedFormData?.timestamp || Date.now()}`} // Add timestamp to force re-render
+            key={`metro-form-${savedFormData?.timestamp || Date.now()}`}
             initialData={savedFormData}
             onBack={() => setActiveForm(null)}
             onBookNow={handleFormSubmit}
@@ -138,7 +126,7 @@ export default function BookTrip() {
       case 'provincial':
         return (
           <ProvincialForm1
-            key={`provincial-form-${savedFormData?.timestamp || Date.now()}`} // Add timestamp to force re-render
+            key={`provincial-form-${savedFormData?.timestamp || Date.now()}`}
             initialData={savedFormData}
             onBack={() => setActiveForm(null)}
             onBookNow={handleFormSubmit}

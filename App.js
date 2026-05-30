@@ -15,6 +15,7 @@ import CustomerHome from './screens/CustomerHome';
 import CustomerBookings from './screens/CustomerBookings';
 import CustomerSettings from './screens/CustomerSettings';
 import BookTrip from './screens/BookTrip';
+import BookingReceipt from './screens/BookingReceipt';
 
 const Stack = createNativeStackNavigator();
 
@@ -99,6 +100,7 @@ export default function App() {
           <Stack.Screen name="CustomerBookings" component={CustomerBookings} />
           <Stack.Screen name="CustomerSettings" component={CustomerSettings} />
           <Stack.Screen name="BookTrip" component={BookTrip} />
+          <Stack.Screen name="BookingReceipt" component={BookingReceipt} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

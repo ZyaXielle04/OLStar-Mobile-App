@@ -16,7 +16,11 @@
 
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.olstar.travelapp"
+      "bundleIdentifier": "com.olstar.travelapp",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allow OLStar to access your photos to save booking receipts.",
+        "NSPhotoLibraryAddUsageDescription": "Allow OLStar to save booking receipts to your gallery."
+      }
     },
 
     "android": {
@@ -25,12 +29,15 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
 
     "web": {
       "favicon": "./assets/favicon.png",
-
       "config": {
         "firebase": {
           "apiKey": "AIzaSyDhzDZE1a4s2WDSGJQ6gJU1Q6Fp3vDJrid0",
@@ -45,7 +52,15 @@
 
     "plugins": [
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow OLStar to access your photos to save booking receipts.",
+          "savePhotosPermission": "Allow OLStar to save booking receipts to your gallery.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ]
     ],
 
     "extra": {
