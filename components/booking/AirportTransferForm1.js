@@ -1,6 +1,6 @@
 // components/booking/AirportTransferForm1.js
 import { View, Text, TextInput, Pressable, ScrollView, Alert, Modal, ActivityIndicator } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { styles } from '../../styles/AirportTransferForm.styles';
 import { database } from '../../firebaseConfig';
 import { ref, get, child } from 'firebase/database';
@@ -243,7 +243,7 @@ const countryCodes = [
   { code: 'ZW', name: 'Zimbabwe', dialCode: '+263' }
 ];
 
-export default function AirportTransferForm1({ onBack, onBookNow }) {
+export default function AirportTransferForm1({ onBack, onBookNow, initialData }) {
   const fallbackAreas = [
     { id: 'makati', name: 'Makati', prices: { 'Economy 4': '4200', 'Premium 6': '5500', 'Luxury 10': '7500' } },
     { id: 'bgc', name: 'BGC', prices: { 'Economy 4': '4500', 'Premium 6': '5800', 'Luxury 10': '7800' } },
@@ -260,7 +260,7 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
   
   const [tripType, setTripType] = useState('arrival');
   const [selectedAirport, setSelectedAirport] = useState('NAIA');
-  const [selectedTerminal, setSelectedTerminal] = useState('T1');
+  const [selectedTerminal, setSelectedTerminal] = useState('Terminal 1');
   const [pickupLocation, setPickupLocation] = useState('');
   const [dropoffLocation, setDropoffLocation] = useState('');
   const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
@@ -296,6 +296,16 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
   const [countryCodeSearch, setCountryCodeSearch] = useState('');
   const [phoneError, setPhoneError] = useState('');
 
+  // Refs for scroll views
+  const monthScrollRef = useRef(null);
+  const dayScrollRef = useRef(null);
+  const yearScrollRef = useRef(null);
+  const hourScrollRef = useRef(null);
+  const minuteScrollRef = useRef(null);
+  
+  // State for picker item height
+  const [pickerItemHeight, setPickerItemHeight] = useState(45);
+
   // Passenger details state
   const [passengerDetails, setPassengerDetails] = useState({
     fullName: '',
@@ -307,6 +317,48 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
     numLuggage: '',
     specialRequests: ''
   });
+
+  // Restore saved data when component mounts
+  useEffect(() => {
+    if (initialData) {
+      console.log('Restoring saved form data:', initialData);
+      
+      if (initialData.tripType) setTripType(initialData.tripType);
+      if (initialData.selectedAirport) setSelectedAirport(initialData.selectedAirport);
+      if (initialData.selectedTerminal) setSelectedTerminal(initialData.selectedTerminal);
+      if (initialData.pickupLocation) setPickupLocation(initialData.pickupLocation);
+      if (initialData.dropoffLocation) setDropoffLocation(initialData.dropoffLocation);
+      if (initialData.date) setDate(initialData.date);
+      if (initialData.time) setTime(initialData.time);
+      if (initialData.selectedArea) setSelectedArea(initialData.selectedArea);
+      
+      if (initialData.passengerDetails) {
+        setPassengerDetails(prev => ({
+          ...prev,
+          ...initialData.passengerDetails
+        }));
+      }
+      
+      if (initialData.selectedPackage) setSelectedPackage(initialData.selectedPackage);
+      
+      if (initialData.price) {
+        if (initialData.price.original) setOriginalPrice(initialData.price.original);
+        if (initialData.price.final) setCalculatedPrice(initialData.price.final);
+        if (initialData.price.discount) setDiscountInfo(initialData.price.discount);
+      }
+      
+      setTimeout(() => {
+        const pickup = initialData.pickupLocation || pickupLocation;
+        const dropoff = initialData.dropoffLocation || dropoffLocation;
+        const dateVal = initialData.date || date;
+        const timeVal = initialData.time || time;
+        checkItineraryComplete(pickup, dropoff, dateVal, timeVal);
+        
+        if (initialData.selectedPackage) setIsPackageExpanded(true);
+        if (initialData.passengerDetails?.fullName) setIsPassengerExpanded(true);
+      }, 100);
+    }
+  }, [initialData]);
 
   // Load packages from Firebase
   useEffect(() => {
@@ -346,6 +398,60 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
     return () => clearTimeout(timeout);
   }, [dropoffLocation, tripType]);
 
+  // Auto-scroll to selected values when date picker opens
+  useEffect(() => {
+    if (showDatePicker) {
+      setTimeout(() => {
+        const monthIndex = months.findIndex(m => m.value === tempMonth);
+        if (monthScrollRef.current && monthIndex !== -1) {
+          monthScrollRef.current.scrollTo({
+            y: monthIndex * pickerItemHeight,
+            animated: true,
+          });
+        }
+        
+        const dayIndex = days.findIndex(d => d.value === tempDay);
+        if (dayScrollRef.current && dayIndex !== -1) {
+          dayScrollRef.current.scrollTo({
+            y: dayIndex * pickerItemHeight,
+            animated: true,
+          });
+        }
+        
+        const yearIndex = years.findIndex(y => y.value === tempYear);
+        if (yearScrollRef.current && yearIndex !== -1) {
+          yearScrollRef.current.scrollTo({
+            y: yearIndex * pickerItemHeight,
+            animated: true,
+          });
+        }
+      }, 100);
+    }
+  }, [showDatePicker, tempMonth, tempDay, tempYear]);
+
+  // Auto-scroll to selected values when time picker opens
+  useEffect(() => {
+    if (showTimePicker) {
+      setTimeout(() => {
+        const hourIndex = hours.findIndex(h => h.value === tempHour);
+        if (hourScrollRef.current && hourIndex !== -1) {
+          hourScrollRef.current.scrollTo({
+            y: hourIndex * pickerItemHeight,
+            animated: true,
+          });
+        }
+        
+        const minuteIndex = minutes.findIndex(m => m.value === tempMinute);
+        if (minuteScrollRef.current && minuteIndex !== -1) {
+          minuteScrollRef.current.scrollTo({
+            y: minuteIndex * pickerItemHeight,
+            animated: true,
+          });
+        }
+      }, 100);
+    }
+  }, [showTimePicker, tempHour, tempMinute]);
+
   const loadPackages = async () => {
     try {
       setLoading(true);
@@ -362,7 +468,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
         console.log('Packages loaded:', packagesList);
       } else {
         console.log('No packages found');
-        // Fallback to mock data for testing
         setPackages([
           {
             id: 'economy_4',
@@ -395,7 +500,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
     }
   };
 
-  // Load areas based on location
   const loadAreas = async () => {
     try {
       const dbRef = ref(database);
@@ -422,7 +526,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
         console.log('Areas loaded:', areas);
       } else {
         console.log('No areas found');
-        // Fallback to mock areas for testing
         setAvailableAreas([
           { id: 'makati', name: 'Makati', prices: { 'Economy 4': '4200', 'Premium 6': '5500', 'Luxury 10': '7500' } },
           { id: 'bgc', name: 'BGC', prices: { 'Economy 4': '4500', 'Premium 6': '5800', 'Luxury 10': '7800' } },
@@ -436,7 +539,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
     }
   };
 
-  // Calculate price when package or area changes
   useEffect(() => {
     if (selectedPackage && selectedArea) {
       calculatePrice();
@@ -457,7 +559,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
     if (price) {
       setOriginalPrice(price);
       
-      // Check for discounts
       if (area.discountedPrices) {
         const discount = area.discountedPrices;
         let finalPrice = parseFloat(price);
@@ -487,8 +588,8 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
 
   const airports = {
     NAIA: {
-      name: 'Ninoy Aquino International Airport',
-      terminals: ['T1', 'T2', 'T3']
+      name: 'Ninoy Aquino International Airport (NAIA)',
+      terminals: ['Terminal 1', 'Terminal 2', 'Terminal 3']
     },
     CRK: {
       name: 'Clark International Airport',
@@ -496,7 +597,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
     }
   };
 
-  // Generate data for pickers
   const months = Array.from({ length: 12 }, (_, i) => ({ label: (i + 1).toString().padStart(2, '0'), value: i + 1 }));
   const years = Array.from({ length: 6 }, (_, i) => ({ label: (new Date().getFullYear() + i).toString(), value: new Date().getFullYear() + i }));
   const hours = Array.from({ length: 24 }, (_, i) => ({ label: i.toString().padStart(2, '0'), value: i }));
@@ -635,18 +735,13 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
   };
 
   const handleTripTypeChange = (type) => {
+    if (tripType === type) return;
     setTripType(type);
-    setPickupLocation('');
-    setDropoffLocation('');
     setPickupPredictions([]);
     setDropoffPredictions([]);
     setShowPickupSuggestions(false);
     setShowDropoffSuggestions(false);
-    setSelectedArea('');
-    setAreaError('');
-    setSelectedPackage(null);
-    setCalculatedPrice(null);
-    checkItineraryComplete('', '', date, time);
+    checkItineraryComplete(pickupLocation, dropoffLocation, date, time);
   };
 
   const handleAirportChange = (airport) => {
@@ -654,7 +749,7 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
     if (airport === 'CRK') {
       setSelectedTerminal('Main Terminal');
     } else {
-      setSelectedTerminal('T1');
+      setSelectedTerminal('Terminal 1');
     }
     checkItineraryComplete(pickupLocation, dropoffLocation, date, time);
   };
@@ -1039,6 +1134,25 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
 
   const filteredPackages = getFilteredPackages();
 
+  const getPackageTag = (packagePrice, allPrices) => {
+    if (!allPrices || allPrices.length === 0) return null;
+    
+    const sortedPrices = [...allPrices].sort((a, b) => a - b);
+    const cheapest = sortedPrices[0];
+    const mostExpensive = sortedPrices[sortedPrices.length - 1];
+    const middleIndex = Math.floor(sortedPrices.length / 2);
+    const middlePrice = sortedPrices[middleIndex];
+    
+    if (packagePrice === cheapest) {
+      return { text: 'Cheapest Deal Picked for You', color: '#4caf50', backgroundColor: '#e8f5e9' };
+    } else if (packagePrice === mostExpensive) {
+      return { text: 'Grandiose', color: '#ff9800', backgroundColor: '#fff3e0' };
+    } else if (packagePrice === middlePrice) {
+      return { text: 'Most Valued Deal', color: '#2196f3', backgroundColor: '#e3f2fd' };
+    }
+    return null;
+  };
+
   const getPickupLabel = () => {
     return tripType === 'arrival' ? 'Pickup Location (Airport)' : 'Pickup Location (Your Location)';
   };
@@ -1093,8 +1207,10 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
           discount: discountInfo
         },
         selectedArea,
-        passengerDetails,
-        contactNumber: phoneValidation.formattedNumber,
+        passengerDetails: {
+          ...passengerDetails,
+          contactNumber: phoneValidation.formattedNumber
+        },
         bookingStatus: 'pending',
         timestamp: new Date().toISOString()
       };
@@ -1104,7 +1220,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
     }
   };
 
-  // Render item for number picker
   const renderPickerItem = (item, selectedValue, onSelect, labelKey = 'label', valueKey = 'value') => (
     <Pressable
       key={item[valueKey]}
@@ -1113,6 +1228,12 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
         selectedValue === item[valueKey] && styles.numberPickerItemSelected
       ]}
       onPress={() => onSelect(item[valueKey])}
+      onLayout={(event) => {
+        const { height } = event.nativeEvent.layout;
+        if (height !== pickerItemHeight && height > 0) {
+          setPickerItemHeight(height);
+        }
+      }}
     >
       <Text style={[
         styles.numberPickerText,
@@ -1132,6 +1253,15 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
     );
   }
 
+  const allPackagePrices = filteredPackages.map(pkg => {
+    const area = availableAreas.find(a => a.key === selectedArea || a.id === selectedArea);
+    if (area && area.prices) {
+      const price = area.prices[pkg.packageName];
+      return price ? parseInt(price) : null;
+    }
+    return null;
+  }).filter(price => price !== null);
+
   return (
     <ScrollView 
       style={styles.container}
@@ -1142,7 +1272,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
       <View style={styles.itinerary}>
         <Text style={styles.sectionTitle}>Trip Details</Text>
         
-        {/* Radio Buttons for Arrival/Departure */}
         <View style={styles.radioGroup}>
           <Pressable 
             style={[styles.radioOption, tripType === 'arrival' && styles.radioSelected]} 
@@ -1161,7 +1290,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
           </Pressable>
         </View>
 
-        {/* Airport Selection */}
         <Text style={styles.label}>Select Airport:</Text>
         <View style={styles.airportGroup}>
           <Pressable 
@@ -1179,7 +1307,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
           </Pressable>
         </View>
 
-        {/* Terminal Selection - Only show for NAIA */}
         {selectedAirport === 'NAIA' && (
           <View>
             <Text style={styles.label}>Select Terminal:</Text>
@@ -1199,7 +1326,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
           </View>
         )}
 
-        {/* Pickup Location */}
         <Text style={styles.label}>{getPickupLabel()}</Text>
         {tripType === 'arrival' ? (
           <View style={styles.readOnlyField}>
@@ -1219,7 +1345,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
           </View>
         )}
 
-        {/* Dropoff Location */}
         <Text style={styles.label}>{getDropoffLabel()}</Text>
         {tripType === 'departure' ? (
           <View style={styles.readOnlyField}>
@@ -1240,7 +1365,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
         )}
         {areaError ? <Text style={styles.errorText}>{areaError}</Text> : null}
 
-        {/* Date Field - Picker Button */}
         <Text style={styles.label}>Date (MM-DD-YYYY)</Text>
         <Pressable style={styles.pickerButton} onPress={openDatePicker}>
           <Text style={date ? styles.pickerButtonText : styles.pickerButtonPlaceholder}>
@@ -1249,7 +1373,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
         </Pressable>
         {dateError ? <Text style={styles.errorText}>{dateError}</Text> : null}
 
-        {/* Time Field - Picker Button */}
         <Text style={styles.label}>Time (HH:MM UTC+8 - 24-hour format)</Text>
         <Pressable style={styles.pickerButton} onPress={openTimePicker}>
           <Text style={time ? styles.pickerButtonText : styles.pickerButtonPlaceholder}>
@@ -1282,7 +1405,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
         />
       </View>
 
-      {/* Package Selection Section - Collapsible */}
       {isItineraryComplete && selectedArea && (
         <>
           <Pressable onPress={togglePackageSection}>
@@ -1302,62 +1424,93 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
                     No packages can accommodate the selected passengers and luggages.
                   </Text>
                 </View>
-              ) : filteredPackages.map((pkg) => (
-                <Pressable
-                  key={pkg.id}
-                  style={[
-                    styles.packageCard,
-                    selectedPackage?.id === pkg.id && styles.packageCardSelected
-                  ]}
-                  onPress={() => handlePackageSelect(pkg)}
-                >
-                  <View style={styles.packageCardHeader}>
-                    <Text style={styles.packageName}>{pkg.packageName}</Text>
-                    {selectedPackage?.id === pkg.id && (
-                      <Ionicons name="checkmark-circle" size={24} color="#ff4d4d" />
+              ) : filteredPackages.map((pkg) => {
+                const area = availableAreas.find(a => a.key === selectedArea || a.id === selectedArea);
+                const packagePrice = area?.prices?.[pkg.packageName] ? parseInt(area.prices[pkg.packageName]) : null;
+                const tag = packagePrice ? getPackageTag(packagePrice, allPackagePrices) : null;
+                
+                return (
+                  <Pressable
+                    key={pkg.id}
+                    style={[
+                      styles.packageCard,
+                      selectedPackage?.id === pkg.id && styles.packageCardSelected
+                    ]}
+                    onPress={() => handlePackageSelect(pkg)}
+                  >
+                    {tag && (
+                      <View style={{
+                        position: 'absolute',
+                        top: -8,
+                        right: -8,
+                        backgroundColor: tag.backgroundColor,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: 16,
+                        zIndex: 10,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 4,
+                        elevation: 3,
+                      }}>
+                        <Text style={{
+                          color: tag.color,
+                          fontSize: 11,
+                          fontWeight: 'bold',
+                        }}>
+                          {tag.text}
+                        </Text>
+                      </View>
                     )}
-                  </View>
-                  
-                  <View style={styles.packageDetails}>
-                    <View style={styles.packageDetail}>
-                      <Ionicons name="people-outline" size={16} color="#666" />
-                      <Text style={styles.packageDetailText}>Max {pkg.maxPax} passengers</Text>
-                    </View>
-                    <View style={styles.packageDetail}>
-                      <Ionicons name="briefcase-outline" size={16} color="#666" />
-                      <Text style={styles.packageDetailText}>Max {pkg.maxLuggage} luggage</Text>
-                    </View>
-                    <View style={styles.packageDetail}>
-                      <Ionicons name="car-outline" size={16} color="#666" />
-                      <Text style={styles.packageDetailText}>
-                        Vehicle: {pkg.vehicleTypes?.join(', ') || 'Standard'}
-                      </Text>
-                    </View>
-                  </View>
-                  
-                  {selectedPackage?.id === pkg.id && calculatedPrice && (
-                    <View style={styles.priceContainer}>
-                      {discountInfo ? (
-                        <>
-                          <Text style={styles.originalPrice}>₱{originalPrice}</Text>
-                          <Text style={styles.discountedPrice}>₱{calculatedPrice}</Text>
-                          <Text style={styles.discountBadge}>
-                            {discountInfo.type === 'fixed' ? `₱${discountInfo.value} OFF` : `${discountInfo.value}% OFF`}
-                          </Text>
-                        </>
-                      ) : (
-                        <Text style={styles.price}>₱{calculatedPrice}</Text>
+                    
+                    <View style={styles.packageCardHeader}>
+                      <Text style={styles.packageName}>{pkg.packageName}</Text>
+                      {selectedPackage?.id === pkg.id && (
+                        <Ionicons name="checkmark-circle" size={24} color="#ff4d4d" />
                       )}
                     </View>
-                  )}
-                </Pressable>
-              ))}
+                    
+                    <View style={styles.packageDetails}>
+                      <View style={styles.packageDetail}>
+                        <Ionicons name="people-outline" size={16} color="#666" />
+                        <Text style={styles.packageDetailText}>Max {pkg.maxPax} passengers</Text>
+                      </View>
+                      <View style={styles.packageDetail}>
+                        <Ionicons name="briefcase-outline" size={16} color="#666" />
+                        <Text style={styles.packageDetailText}>Max {pkg.maxLuggage} luggage</Text>
+                      </View>
+                      <View style={styles.packageDetail}>
+                        <Ionicons name="car-outline" size={16} color="#666" />
+                        <Text style={styles.packageDetailText}>
+                          Vehicle: {pkg.vehicleTypes?.join(', ') || 'Standard'}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    {selectedPackage?.id === pkg.id && calculatedPrice && (
+                      <View style={styles.priceContainer}>
+                        {discountInfo ? (
+                          <>
+                            <Text style={styles.originalPrice}>₱{originalPrice}</Text>
+                            <Text style={styles.discountedPrice}>₱{calculatedPrice}</Text>
+                            <Text style={styles.discountBadge}>
+                              {discountInfo.type === 'fixed' ? `₱${discountInfo.value} OFF` : `${discountInfo.value}% OFF`}
+                            </Text>
+                          </>
+                        ) : (
+                          <Text style={styles.price}>₱{calculatedPrice}</Text>
+                        )}
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
             </View>
           )}
         </>
       )}
 
-      {/* Passenger Details Section - Collapsible */}
       {selectedPackage && (
         <>
           <Pressable 
@@ -1391,7 +1544,7 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
                 onChangeText={(text) => handlePassengerChange('fullName', text)}
               />
               
-              <Text style={styles.label}>WhatsApp or  Contact Number *</Text>
+              <Text style={styles.label}>WhatsApp or Contact Number *</Text>
               <View style={styles.phoneInputRow}>
                 <Pressable
                   style={styles.countryCodeButton}
@@ -1438,7 +1591,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
         </>
       )}
 
-      {/* Required fields indicator */}
       {isItineraryComplete && selectedArea && !selectedPackage && (
         <View style={styles.infoMessage}>
           <Text style={styles.infoMessageText}>
@@ -1455,7 +1607,6 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
         </View>
       )}
 
-      {/* Action Buttons - Book Now only visible when form is complete */}
       {isFormComplete() && (
         <Pressable style={styles.button} onPress={handleBookNow}>
           <Text style={styles.buttonText}>Book Now</Text>
@@ -1481,8 +1632,11 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
               <View style={styles.pickerWrapper}>
                 <Text style={styles.pickerLabelText}>Month</Text>
                 <ScrollView 
+                  ref={monthScrollRef}
                   style={styles.numberPicker}
                   showsVerticalScrollIndicator={false}
+                  snapToInterval={pickerItemHeight}
+                  decelerationRate="fast"
                 >
                   {months.map((month) => renderPickerItem(month, tempMonth, setTempMonth))}
                 </ScrollView>
@@ -1491,8 +1645,11 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
               <View style={styles.pickerWrapper}>
                 <Text style={styles.pickerLabelText}>Day</Text>
                 <ScrollView 
+                  ref={dayScrollRef}
                   style={styles.numberPicker}
                   showsVerticalScrollIndicator={false}
+                  snapToInterval={pickerItemHeight}
+                  decelerationRate="fast"
                 >
                   {days.map((day) => renderPickerItem(day, tempDay, setTempDay))}
                 </ScrollView>
@@ -1501,8 +1658,11 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
               <View style={styles.pickerWrapper}>
                 <Text style={styles.pickerLabelText}>Year</Text>
                 <ScrollView 
+                  ref={yearScrollRef}
                   style={styles.numberPicker}
                   showsVerticalScrollIndicator={false}
+                  snapToInterval={pickerItemHeight}
+                  decelerationRate="fast"
                 >
                   {years.map((year) => renderPickerItem(year, tempYear, setTempYear))}
                 </ScrollView>
@@ -1536,8 +1696,11 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
               <View style={styles.pickerWrapper}>
                 <Text style={styles.pickerLabelText}>Hour</Text>
                 <ScrollView 
+                  ref={hourScrollRef}
                   style={styles.numberPicker}
                   showsVerticalScrollIndicator={false}
+                  snapToInterval={pickerItemHeight}
+                  decelerationRate="fast"
                 >
                   {hours.map((hour) => renderPickerItem(hour, tempHour, setTempHour))}
                 </ScrollView>
@@ -1546,8 +1709,11 @@ export default function AirportTransferForm1({ onBack, onBookNow }) {
               <View style={styles.pickerWrapper}>
                 <Text style={styles.pickerLabelText}>Minute</Text>
                 <ScrollView 
+                  ref={minuteScrollRef}
                   style={styles.numberPicker}
                   showsVerticalScrollIndicator={false}
+                  snapToInterval={pickerItemHeight}
+                  decelerationRate="fast"
                 >
                   {minutes.map((minute) => renderPickerItem(minute, tempMinute, setTempMinute))}
                 </ScrollView>

@@ -1,20 +1,23 @@
-import { View, Text, Pressable, ScrollView, Image } from 'react-native';
+// screens/BookTrip.js
+import { View, Text, Pressable, ScrollView, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { styles } from '../styles/BookTrip.styles';
 
-// import reusable forms
+// Import reusable forms
 import AirportTransferForm1 from '../components/booking/AirportTransferForm1';
 import SelfDriveForm1 from '../components/booking/SelfDriveForm1';
 import MetroForm1 from '../components/booking/MetroForm1';
 import ProvincialForm1 from '../components/booking/ProvincialForm1';
 import BookingDosDonts from '../components/booking/BookingDosDonts';
+import PaymentPortal from '../components/booking/PaymentPortal';
 
 export default function BookTrip() {
-
   const [activeForm, setActiveForm] = useState(null);
   const [pendingBooking, setPendingBooking] = useState(null);
+  const [showPayment, setShowPayment] = useState(false);
+  const [savedFormData, setSavedFormData] = useState(null);
 
   const serviceNames = {
     airport: 'Airport Transfer',
@@ -27,34 +30,76 @@ export default function BookTrip() {
     return (
       <Pressable
         style={styles.card}
-        onPress={() => setActiveForm(formType)}
+        onPress={() => {
+          setSavedFormData(null);
+          setActiveForm(formType);
+        }}
       >
-
         <Image source={image} style={styles.cardImage} />
-
         <View style={styles.cardHeader}>
           <Ionicons name={icon} size={24} color="#ff4d4d" />
           <Text style={styles.cardTitle}>{title}</Text>
         </View>
-
         <Text style={styles.cardDesc}>{description}</Text>
-
         <View style={styles.cardButton}>
           <Text style={styles.cardButtonText}>Select</Text>
         </View>
-
       </Pressable>
     );
   };
 
+  const handlePaymentComplete = (completedBooking) => {
+    console.log('Payment completed:', completedBooking);
+    Alert.alert(
+      'Booking Confirmed!',
+      `Your ${serviceNames[completedBooking.serviceType] || 'booking'} has been confirmed.\n\nBooking ID: ${completedBooking.bookingId}\n\nWe've sent the details to your email.`,
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            setActiveForm(null);
+            setPendingBooking(null);
+            setShowPayment(false);
+            setSavedFormData(null);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleFormSubmit = (bookingData) => {
+    // Add a timestamp to ensure unique key when going back
+    const dataWithTimestamp = {
+      ...bookingData,
+      timestamp: Date.now()
+    };
+    setSavedFormData(dataWithTimestamp);
+    setPendingBooking(bookingData);
+  };
+
+  const handleBackFromDosDonts = () => {
+    setPendingBooking(null);
+  };
+
   const renderActiveForm = () => {
+    if (showPayment && pendingBooking) {
+      return (
+        <PaymentPortal
+          bookingData={pendingBooking}
+          onBack={() => setShowPayment(false)}
+          onPaymentComplete={handlePaymentComplete}
+        />
+      );
+    }
+
     if (pendingBooking) {
       return (
         <BookingDosDonts
+          key={`dosdonts-${Date.now()}`} // Add unique key to force re-render
           serviceName={serviceNames[pendingBooking.serviceType] || 'Booking'}
           bookingData={pendingBooking}
-          onBack={() => setPendingBooking(null)}
-          onContinue={() => console.log('Continue booking:', pendingBooking)}
+          onBack={handleBackFromDosDonts}
+          onContinue={() => setShowPayment(true)}
         />
       );
     }
@@ -63,19 +108,42 @@ export default function BookTrip() {
       case 'airport':
         return (
           <AirportTransferForm1
+            key={`airport-form-${savedFormData?.timestamp || Date.now()}`} // Add timestamp to force re-render
+            initialData={savedFormData}
             onBack={() => setActiveForm(null)}
-            onBookNow={(bookingData) => setPendingBooking(bookingData)}
+            onBookNow={handleFormSubmit}
           />
         );
 
       case 'selfdrive':
-        return <SelfDriveForm1 onBack={() => setActiveForm(null)} />;
+        return (
+          <SelfDriveForm1
+            key={`selfdrive-form-${savedFormData?.timestamp || Date.now()}`} // Add timestamp to force re-render
+            initialData={savedFormData}
+            onBack={() => setActiveForm(null)}
+            onBookNow={handleFormSubmit}
+          />
+        );
 
       case 'metro':
-        return <MetroForm1 onBack={() => setActiveForm(null)} />;
+        return (
+          <MetroForm1
+            key={`metro-form-${savedFormData?.timestamp || Date.now()}`} // Add timestamp to force re-render
+            initialData={savedFormData}
+            onBack={() => setActiveForm(null)}
+            onBookNow={handleFormSubmit}
+          />
+        );
 
       case 'provincial':
-        return <ProvincialForm1 onBack={() => setActiveForm(null)} />;
+        return (
+          <ProvincialForm1
+            key={`provincial-form-${savedFormData?.timestamp || Date.now()}`} // Add timestamp to force re-render
+            initialData={savedFormData}
+            onBack={() => setActiveForm(null)}
+            onBookNow={handleFormSubmit}
+          />
+        );
 
       default:
         return null;
@@ -85,15 +153,12 @@ export default function BookTrip() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-
-        {/* HEADER */}
         <View style={styles.header}>
           <Ionicons name="airplane" size={28} color="#ff4d4d" />
           <Text style={styles.title}>Book a Trip</Text>
         </View>
 
-        {/* SWITCH VIEW */}
-        {!activeForm ? (
+        {!activeForm && !pendingBooking && !showPayment ? (
           <>
             {renderServiceCard({
               title: 'Airport Transfer',
@@ -130,7 +195,6 @@ export default function BookTrip() {
         ) : (
           renderActiveForm()
         )}
-
       </ScrollView>
     </SafeAreaView>
   );

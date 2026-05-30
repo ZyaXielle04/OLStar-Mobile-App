@@ -1,3 +1,4 @@
+// screens/LoginScreen.js
 import { useState, useEffect } from 'react';
 
 import {
@@ -75,7 +76,7 @@ export default function LoginScreen({ navigation }) {
 
       if (session) {
         const user = JSON.parse(session);
-        if (user.role === 'customer') {
+        if (user.role === 'customer' && user.isLoggedIn) {
           navigation.replace('CustomerHome');
         }
       }
@@ -112,20 +113,32 @@ export default function LoginScreen({ navigation }) {
         lastLogin: new Date().toISOString(),
       });
 
+      // Prepare user session data
+      const userSessionData = {
+        uid: user.uid,
+        fullName: userData.fullName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: userData.role,
+        email: user.email,
+        isLoggedIn: true,
+        rememberMe: rememberMe, // Store the preference
+      };
+
+      // ALWAYS save user session for current app session
+      await SecureStore.setItemAsync('olstarUser', JSON.stringify(userSessionData));
+
+      // If "Remember Me" is checked, also save a persistent flag
       if (rememberMe) {
-        await SecureStore.setItemAsync(
-          'olstarUser',
-          JSON.stringify({
-            uid: user.uid,
-            fullName: userData.fullName,
-            role: userData.role,
-          })
-        );
+        await SecureStore.setItemAsync('persistentLogin', 'true');
       } else {
-        await SecureStore.deleteItemAsync('olstarUser');
+        await SecureStore.deleteItemAsync('persistentLogin');
       }
 
-      showModal(`Welcome back ${userData.firstName} ✨`);
+      console.log('✅ User logged in with UID:', user.uid);
+      console.log('✅ Remember Me:', rememberMe);
+
+      showModal(`Welcome back ${userData.firstName || userData.fullName || 'User'} ✨`);
       startRedirect();
 
     } catch (error) {
@@ -143,30 +156,24 @@ export default function LoginScreen({ navigation }) {
         onClose={() => setModalVisible(false)}
       />
 
-      {/*BACKGROUND IMAGE WRAPPER */}
       <ImageBackground
         source={require('../assets/loginBackground.jpg')}
-        style={{ flex: 1 , width: '100%', height: '100%' }}
+        style={{ flex: 1, width: '100%', height: '100%' }}
         resizeMode="cover"
       >
-
-        {/* 🔥 DARK OVERLAY (this creates the 0.4 dim effect) */}
         <View
           style={{
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.4)',
           }}
         >
-
           <ScrollView
             style={[styles.container, { paddingTop: insets.top }]}
             contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.content}>
-
               <Text style={styles.title}>Welcome Back 👋</Text>
-
               <Text style={styles.subtitle}>
                 Login to continue your OLStar journey
               </Text>
@@ -187,7 +194,6 @@ export default function LoginScreen({ navigation }) {
                   secureTextEntry={!showPassword}
                   style={styles.input}
                 />
-
                 <Pressable
                   onPress={() => setShowPassword(!showPassword)}
                   style={{ position: 'absolute', right: 15, top: 15 }}
@@ -213,7 +219,7 @@ export default function LoginScreen({ navigation }) {
                   size={22}
                   color={rememberMe ? '#fcdaf6' : 'rgba(30, 41, 59, 1)'}
                 />
-                <Text style={{ marginLeft: 10, color: 'rgba(30, 41, 59, 1)' }}>
+                <Text style={{ marginLeft: 10, color: '#fcdaf6' }}>
                   Remember me
                 </Text>
               </Pressable>
@@ -244,17 +250,14 @@ export default function LoginScreen({ navigation }) {
 
               <View style={styles.footerContainer}>
                 <Text style={[styles.footer, { color: '#fff' }]}>
-                  Don’t have an account?
+                  Don't have an account?
                 </Text>
-
                 <Pressable onPress={() => navigation.navigate('Register')}>
                   <Text style={styles.signupText}>Sign up</Text>
                 </Pressable>
               </View>
-
             </View>
           </ScrollView>
-
         </View>
       </ImageBackground>
     </>

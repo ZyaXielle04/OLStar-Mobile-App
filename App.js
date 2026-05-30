@@ -1,4 +1,6 @@
+// App.js
 import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
@@ -12,7 +14,7 @@ import RegisterScreen from './screens/RegisterScreen';
 import CustomerHome from './screens/CustomerHome';
 import CustomerBookings from './screens/CustomerBookings';
 import CustomerSettings from './screens/CustomerSettings';
-import BookTrip from './screens/BookTrip'
+import BookTrip from './screens/BookTrip';
 
 const Stack = createNativeStackNavigator();
 
@@ -20,24 +22,61 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [initialRoute, setInitialRoute] = useState(null);
 
+  // Handle app state changes for session-only logins
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        try {
+          const session = await SecureStore.getItemAsync('olstarUser');
+          if (session) {
+            const user = JSON.parse(session);
+            // If user didn't check "Remember Me", clear session when app goes to background
+            if (!user.rememberMe) {
+              console.log('⏰ Session-only login, clearing user data on app background');
+              await SecureStore.deleteItemAsync('olstarUser');
+            }
+          }
+        } catch (error) {
+          console.error('Error handling app state change:', error);
+        }
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
   useEffect(() => {
     const bootstrap = async () => {
       try {
         const hasLaunched = await AsyncStorage.getItem('hasLaunched');
-        const session = await SecureStore.getItemAsync('olstarUser');
+        
+        // Check for persistent login (Remember Me was checked)
+        const persistentLogin = await SecureStore.getItemAsync('persistentLogin');
+        let session = null;
+        
+        if (persistentLogin === 'true') {
+          // User checked "Remember Me", try to restore session
+          session = await SecureStore.getItemAsync('olstarUser');
+        } else {
+          // User didn't check "Remember Me", only check if there's an active session
+          // But don't restore on fresh app start
+          session = null;
+        }
 
-        if (session) {
+        if (session && persistentLogin === 'true') {
           const user = JSON.parse(session);
-
-          if (user?.role === 'customer') {
+          if (user?.role === 'customer' && user.rememberMe) {
+            console.log('✅ Restoring persistent session for user:', user.uid);
             setInitialRoute('CustomerHome');
             setLoading(false);
             return;
           }
         }
 
+        // First time launch or no persistent session
         setInitialRoute(hasLaunched === null ? 'Splash' : 'Login');
-      } catch {
+      } catch (error) {
+        console.error('Bootstrap error:', error);
         setInitialRoute('Login');
       } finally {
         setLoading(false);

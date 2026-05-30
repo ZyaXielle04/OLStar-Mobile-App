@@ -6,6 +6,10 @@ export const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 20,
   },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 40,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
