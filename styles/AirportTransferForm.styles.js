@@ -1,6 +1,5 @@
 // styles/AirportTransferForm.styles.js
-import { StyleSheet, Platform, Dimensions } from 'react-native';
-import { getStatusBarHeight } from 'react-native-status-bar-height';
+import { StyleSheet, Platform, Dimensions, StatusBar } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -30,15 +29,24 @@ const getResponsiveFontSize = (baseSize) => {
   return baseSize;
 };
 
-const primaryColor = '#FCDAF6'; // RGB: 252, 218, 246
+const primaryColor = '#FCDAF6';
 const primaryColorLight = '#FFF5FD';
+
+// Get status bar height safely
+const getStatusBarHeightValue = () => {
+  if (Platform.OS === 'ios') {
+    return isIPhoneX ? 44 : 20;
+  }
+  return StatusBar.currentHeight || 0;
+};
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: getResponsivePadding(),
     backgroundColor: '#fff',
-    paddingTop: Platform.OS === 'ios' ? (isIPhoneX ? 44 : 20) : getStatusBarHeight(),
+    paddingTop: getStatusBarHeightValue(),
+    overflow: 'visible',
   },
   itinerary: {
     marginBottom: getResponsiveSize(15, 20, 25),
@@ -287,8 +295,9 @@ export const styles = StyleSheet.create({
   },
   autocompleteWrapper: {
     position: 'relative',
-    zIndex: 1,
+    zIndex: 999,
     marginBottom: getResponsiveSize(3, 5, 8),
+    overflow: 'visible',
   },
   suggestionsContainer: {
     backgroundColor: '#fff',
@@ -300,12 +309,13 @@ export const styles = StyleSheet.create({
     top: getResponsiveSize(50, 55, 60),
     left: 0,
     right: 0,
-    zIndex: 1000,
-    elevation: 5,
+    zIndex: 10000,
+    elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    overflow: 'scroll',
   },
   suggestionsScrollView: {
     maxHeight: 200,
@@ -316,6 +326,7 @@ export const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#fff',
   },
   suggestionItemLast: {
     borderBottomWidth: 0,
@@ -324,6 +335,7 @@ export const styles = StyleSheet.create({
     fontSize: getResponsiveFontSize(12, 14),
     color: '#333',
     marginLeft: getResponsiveSize(6, 8, 10),
+    flex: 1,
   },
   pickerButton: {
     borderWidth: 1,
