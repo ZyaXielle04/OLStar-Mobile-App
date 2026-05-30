@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import Constants from 'expo-constants';
 import countryCodes from './countryCodes';
+import countryCodesWithFlags from './countryCodes';
 
 const GEOAPIFY_API_KEY = Constants?.manifest?.extra?.EXPO_PUBLIC_GEOAPIFY_API_KEY ||
   Constants?.expoConfig?.extra?.EXPO_PUBLIC_GEOAPIFY_API_KEY ||
