@@ -63,8 +63,7 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
     countryCode: '+63',
     contactNumber: '',
     email: '',
-    numPassengers: '',
-    numLuggage: '',
+    driverLicenseNumber: '',  // Add this
     specialRequests: ''
   });
   
@@ -665,6 +664,10 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
       Alert.alert('Error', 'Please enter your contact number');
       return;
     }
+    if (!passengerDetails.driverLicenseNumber.trim()) {
+      Alert.alert('Error', 'Please enter your driver\'s license number');
+      return;
+    }
     if (!phoneValidation.isValid) return;
     
     const bookingData = {
@@ -722,7 +725,14 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
     if (data.pickupTime) setPickupTime(data.pickupTime);
     if (data.selectedDuration) setSelectedDuration(data.selectedDuration);
     if (data.selectedUnit) setSelectedUnit(data.selectedUnit);
-    if (data.passengerDetails) setPassengerDetails(prev => ({ ...prev, ...data.passengerDetails }));
+    if (data.passengerDetails) {
+      setPassengerDetails(prev => ({ 
+        ...prev, 
+        ...data.passengerDetails,
+        // Ensure driverLicenseNumber is preserved
+        driverLicenseNumber: data.passengerDetails.driverLicenseNumber || prev.driverLicenseNumber
+      }));
+    }
     if (data.price) {
       if (data.price.original) setOriginalPrice(data.price.original);
       if (data.price.final) setCalculatedPrice(data.price.final);
@@ -1045,7 +1055,7 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
       </View>
       
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Passenger Details</Text>
+        <Text style={styles.sectionTitle}>Driver Details</Text>
         
         <Text style={styles.label}>Full Name *</Text>
         <TextInput 
@@ -1087,30 +1097,19 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
         </View>
         {phoneError ? <Text style={styles.errorText}>{phoneError}</Text> : null}
         
-        <Text style={styles.label}>Number of Passengers *</Text>
+        <Text style={styles.label}>Driver's License Number *</Text>
         <TextInput 
           style={styles.input}
-          placeholder="Enter number of passengers"
+          placeholder="Enter your driver's license number"
           placeholderTextColor="#999"
-          keyboardType="numeric"
-          value={passengerDetails.numPassengers}
-          onChangeText={(text) => setPassengerDetails({...passengerDetails, numPassengers: text.replace(/\D/g, '')})}
-        />
-        
-        <Text style={styles.label}>Number of Luggages</Text>
-        <TextInput 
-          style={styles.input}
-          placeholder="Enter number of luggages"
-          placeholderTextColor="#999"
-          keyboardType="numeric"
-          value={passengerDetails.numLuggage}
-          onChangeText={(text) => setPassengerDetails({...passengerDetails, numLuggage: text.replace(/\D/g, '')})}
+          value={passengerDetails.driverLicenseNumber}
+          onChangeText={(text) => setPassengerDetails({...passengerDetails, driverLicenseNumber: text})}
         />
         
         <Text style={styles.label}>Special Requests (Optional)</Text>
         <TextInput 
           style={[styles.input, styles.textArea]}
-          placeholder="Any special requests?"
+          placeholder="Any special requests? (e.g., child seat, GPS, etc.)"
           placeholderTextColor="#999"
           multiline
           numberOfLines={3}

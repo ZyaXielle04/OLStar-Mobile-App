@@ -100,23 +100,6 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
     }
   };
   
-  // Helper function to get user data synchronously (avoids async issues in save functions)
-  const getUserId = () => {
-    if (userData?.uid) {
-      return userData.uid;
-    }
-    // Fallback: try to get from SecureStore synchronously (though this is async, we'll log)
-    console.warn('⚠️ userData not available yet, will use fallback');
-    return 'anonymous';
-  };
-  
-  const getUserName = () => {
-    if (userData?.fullName) {
-      return userData.fullName;
-    }
-    return '';
-  };
-  
   const formatPrice = (price) => {
     if (!price) return '0';
     return new Intl.NumberFormat('en-PH', {
@@ -135,11 +118,22 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
   
   const checkIfBookingIdExists = async (bookingId) => {
     try {
+      // Try to read with a fallback - if permission denied, assume it doesn't exist
       const bookingRef = ref(database, `pendingBooking/${bookingId}`);
-      const snapshot = await get(bookingRef);
+      const snapshot = await get(bookingRef).catch((error) => {
+        if (error.code === 'PERMISSION_DENIED') {
+          console.log('Permission denied, assuming ID does not exist');
+          return { exists: () => false };
+        }
+        throw error;
+      });
       return snapshot.exists();
     } catch (error) {
       console.error('Error checking booking ID:', error);
+      // If permission denied, assume ID doesn't exist and continue
+      if (error.message?.includes('permission_denied')) {
+        return false;
+      }
       return false;
     }
   };
@@ -176,17 +170,27 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
     return methodMap[methodId] || methodId;
   };
   
+  const getServiceTypeValue = (serviceType) => {
+    const typeMap = {
+      'airport': 'airportTransfer',
+      'airportTransfer': 'airportTransfer',
+      'metro': 'manilaCarRental',
+      'manilaCarRental': 'manilaCarRental',
+      'provincial': 'provincialCarRental',
+      'provincialCarRental': 'provincialCarRental',
+      'selfdrive': 'selfDriveCarRental',
+      'selfDriveCarRental': 'selfDriveCarRental'
+    };
+    return typeMap[serviceType] || 'pendingBooking';
+  };
+  
   const saveAirportTransferToFirebase = async (completedBooking, bookingId) => {
     const now = new Date();
     const bookingRef = ref(database, `pendingBooking/${bookingId}`);
     
-    // Get user data - use the state if available
     const clientId = userData?.uid || 'anonymous';
     const clientName = userData?.fullName || completedBooking.passengerDetails?.fullName || '';
     const clientEmail = completedBooking.passengerDetails?.email || '';
-    
-    console.log('💾 Saving booking with clientId:', clientId);
-    console.log('💾 clientName:', clientName);
     
     const bookingRecord = {
       amount: parseInt(completedBooking.price?.final) || 0,
@@ -305,23 +309,21 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
       clientId: clientId,
       clientName: clientName,
       contactNumber: completedBooking.passengerDetails?.contactNumber || '',
-      date: completedBooking.date || '',
+      date: completedBooking.pickupDate || '',
       email: clientEmail,
       note: completedBooking.passengerDetails?.specialRequests || '',
-      carType: completedBooking.selectedCar?.name || completedBooking.selectedPackage?.name || '',
+      carType: completedBooking.selectedUnit?.name || '',
       paidAt: now.toISOString(),
-      passengers: parseInt(completedBooking.passengerDetails?.numPassengers) || 0,
       paymentMethod: getPaymentMethodValue(completedBooking.paymentMethod),
       paymentStatus: 'paid',
       pickup: completedBooking.pickupLocation || '',
       dropoff: completedBooking.dropoffLocation || '',
-      rentalDays: completedBooking.rentalDays || '',
-      rentalHours: completedBooking.rentalHours || '',
-      driverLicenseNumber: completedBooking.driverLicenseNumber || '',
-      withInsurance: completedBooking.withInsurance || false,
+      pickupTime: completedBooking.pickupTime || '',
+      returnDateTime: completedBooking.returnDate || '',
+      rentalDuration: completedBooking.selectedDuration?.name || '',
+      driverLicenseNumber: completedBooking.passengerDetails?.driverLicenseNumber || '',
       source: 'pending',
       status: 'active',
-      time: completedBooking.time || '',
       timestamp: serverTimestamp(),
     };
     
@@ -332,7 +334,6 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
   
   const saveBookingToFirebase = async (completedBooking) => {
     try {
-      // Ensure user data is loaded before saving
       if (!isUserDataLoaded) {
         console.log('⏳ Waiting for user data to load...');
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -342,6 +343,7 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
       const serviceType = completedBooking.serviceType;
       
       console.log('📝 Saving booking with userData:', userData);
+      console.log('📝 Service type:', serviceType);
       
       switch (serviceType) {
         case 'airport':
@@ -475,7 +477,6 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
     
     if (!isValid) return;
     
-    // Ensure user data is loaded before processing payment
     if (!isUserDataLoaded) {
       Alert.alert('Please wait', 'Loading your account information...');
       return;
@@ -558,23 +559,45 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
           <Text style={styles.summaryValue}>{getServiceName()}</Text>
         </View>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Package:</Text>
+          <Text style={styles.summaryLabel}>
+            {bookingData.serviceType === 'selfdrive' ? 'Vehicle:' : 'Package:'}
+          </Text>
           <Text style={styles.summaryValue}>
-            {bookingData.selectedPackage?.name || bookingData.selectedCar?.name || 'Standard'}
+            {bookingData.selectedUnit?.name || bookingData.selectedPackage?.name || bookingData.selectedCar?.name || 'Standard'}
           </Text>
         </View>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Date:</Text>
-          <Text style={styles.summaryValue}>{bookingData.date}</Text>
+          <Text style={styles.summaryLabel}>
+            {bookingData.serviceType === 'selfdrive' ? 'Pickup Date & Time:' : 'Date:'}
+          </Text>
+          <Text style={styles.summaryValue}>
+            {bookingData.serviceType === 'selfdrive' 
+              ? `${bookingData.pickupDate} at ${bookingData.pickupTime}`
+              : bookingData.date}
+          </Text>
         </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Time:</Text>
-          <Text style={styles.summaryValue}>{bookingData.time || 'Flexible'}</Text>
-        </View>
+        {bookingData.serviceType === 'selfdrive' && bookingData.returnDate && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Return Date & Time:</Text>
+            <Text style={styles.summaryValue}>{bookingData.returnDate}</Text>
+          </View>
+        )}
+        {bookingData.serviceType !== 'selfdrive' && bookingData.time && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Time:</Text>
+            <Text style={styles.summaryValue}>{bookingData.time}</Text>
+          </View>
+        )}
         {bookingData.passengerDetails?.numPassengers && (
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Passengers:</Text>
             <Text style={styles.summaryValue}>{bookingData.passengerDetails.numPassengers}</Text>
+          </View>
+        )}
+        {bookingData.selectedDuration?.name && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Duration:</Text>
+            <Text style={styles.summaryValue}>{bookingData.selectedDuration.name}</Text>
           </View>
         )}
         <View style={[styles.summaryRow, styles.summaryTotal]}>
