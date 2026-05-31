@@ -4,50 +4,138 @@ import { useState, useRef, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { styles } from '../../styles/BookingDosDonts.styles';
 
-const defaultDos = [
-  'Double check your booking details (data, time, vehicle, contact info) before paying.',
+// Airport Transfer specific Do's and Don'ts
+const airportDos = [
+  'Double check your flight number, terminal, and arrival/departure time before confirming.',
   'Make sure the cardholder or wallet account matches the booking name.',
-  'Keep your booking ID and the e-receipt for reference and on the day of the trip.',
-  'Have your flight number, terminal, and arrival/departure time handy in your messages.',
-  "Be ready 15 minutes before pickup if you're departing"
+  'Keep your booking ID and the e-receipt for reference on the day of your trip.',
+  'Provide accurate dropoff location to ensure smooth transfer.',
+  'Be ready at the designated pickup area 15 minutes before scheduled time.',
+  'Keep your contact number active for driver coordination.'
 ];
 
-const defaultDonts = [
+const airportDonts = [
   "Don't refresh or close the payment window once you've started.",
   "Don't share your one-time PIN, CVV, or password with anyone — even Olstar staff won't ask.",
   "Don't pay through unofficial channels or accounts not linked to Olstar.",
-  "Don't pay if your flight is unconfirmed — re-book once your itinerary is final."
+  "Don't book if your flight is unconfirmed — re-book once your itinerary is final.",
+  "Don't provide incorrect dropoff location as it may cause delays."
 ];
+
+// Self Drive specific Do's and Don'ts
+const selfDriveDos = [
+  'Double check your pickup and dropoff locations before confirming.',
+  'Ensure you have a valid driver\'s license and bring it on the day of rental.',
+  'Take photos of the vehicle before driving off for your protection.',
+  'Fill up the fuel tank to the same level as received to avoid extra charges.',
+  'Return the vehicle on time to avoid overtime fees.',
+  'Keep your booking ID and contact number handy for assistance.',
+  'Inspect the vehicle thoroughly before accepting.'
+];
+
+const selfDriveDonts = [
+  "Don't refresh or close the payment window once you've started.",
+  "Don't share your one-time PIN, CVV, or password with anyone — even Olstar staff won't ask.",
+  "Don't pay through unofficial channels or accounts not linked to Olstar.",
+  "Don't smoke inside the vehicle (penalties may apply).",
+  "Don't exceed the agreed mileage limit (if applicable).",
+  "Don't return the vehicle with excessive dirt or damage.",
+  "Don't lend the vehicle to unauthorized drivers."
+];
+
+// Metro/Manila Car Rental with Driver specific Do's and Don'ts
+const metroDos = [
+  'Double check your pickup location and time before confirming.',
+  'Provide accurate dropoff location to ensure smooth service.',
+  'Keep your booking ID and the e-receipt for reference on the day of your trip.',
+  'Be ready at the designated pickup area 15 minutes before scheduled time.',
+  'Keep your contact number active for driver coordination.',
+  'Communicate any special requests (e.g., multiple stops) in advance.'
+];
+
+const metroDonts = [
+  "Don't refresh or close the payment window once you've started.",
+  "Don't share your one-time PIN, CVV, or password with anyone — even Olstar staff won't ask.",
+  "Don't pay through unofficial channels or accounts not linked to Olstar.",
+  "Don't request unreasonable route changes without proper coordination.",
+  "Don't cancel last minute as fees may apply."
+];
+
+// Provincial Car Rental with Driver specific Do's and Don'ts
+const provincialDos = [
+  'Double check your pickup location, dropoff, and destination before confirming.',
+  'Ensure you have enough time for the long-distance trip.',
+  'Keep your booking ID and the e-receipt for reference on the day of your trip.',
+  'Be ready at the designated pickup area 15 minutes before scheduled time.',
+  'Keep your contact number active for driver coordination.',
+  'Pack efficiently considering vehicle space limitations.',
+  'Communicate any special stops or requirements in advance.'
+];
+
+const provincialDonts = [
+  "Don't refresh or close the payment window once you've started.",
+  "Don't share your one-time PIN, CVV, or password with anyone — even Olstar staff won't ask.",
+  "Don't pay through unofficial channels or accounts not linked to Olstar.",
+  "Don't change destination drastically without prior coordination.",
+  "Don't cancel last minute as fees may apply due to long-distance nature."
+];
+
+// Get the appropriate Do's and Don'ts based on service type
+const getDosAndDonts = (serviceType) => {
+  switch (serviceType) {
+    case 'airport':
+    case 'airportTransfer':
+      return { dos: airportDos, donts: airportDonts };
+    case 'selfdrive':
+    case 'selfDriveCarRental':
+      return { dos: selfDriveDos, donts: selfDriveDonts };
+    case 'metro':
+    case 'manilaCarRental':
+      return { dos: metroDos, donts: metroDonts };
+    case 'provincial':
+    case 'provincialCarRental':
+      return { dos: provincialDos, donts: provincialDonts };
+    default:
+      return { 
+        dos: airportDos, 
+        donts: airportDonts 
+      };
+  }
+};
 
 export default function BookingDosDonts({
   serviceName = 'Booking',
   bookingData,
-  dos = defaultDos,
-  donts = defaultDonts,
+  dos,
+  donts,
   onBack,
   onContinue
 }) {
   const [hasAgreed, setHasAgreed] = useState(false);
   const scrollViewRef = useRef(null);
   
-  const packageName = bookingData?.selectedPackage?.name;
+  const packageName = bookingData?.selectedPackage?.name || bookingData?.selectedUnit?.name;
   const finalPrice = bookingData?.price?.final;
+  const serviceType = bookingData?.serviceType;
+  
+  // Get the appropriate Do's and Don'ts based on service type if not provided as props
+  const { dos: defaultDos, donts: defaultDonts } = getDosAndDonts(serviceType);
+  
+  const finalDos = dos || defaultDos;
+  const finalDonts = donts || defaultDonts;
 
   // Force scroll to top immediately and after render
   useEffect(() => {
-    // Scroll immediately
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollTo({ x: 0, y: 0, animated: false });
     }
     
-    // Scroll after a short delay to ensure content is rendered
     const timer1 = setTimeout(() => {
       if (scrollViewRef.current) {
         scrollViewRef.current.scrollTo({ x: 0, y: 0, animated: false });
       }
     }, 50);
     
-    // Scroll again after a longer delay to catch any delayed renders
     const timer2 = setTimeout(() => {
       if (scrollViewRef.current) {
         scrollViewRef.current.scrollTo({ x: 0, y: 0, animated: false });
@@ -58,7 +146,7 @@ export default function BookingDosDonts({
       clearTimeout(timer1);
       clearTimeout(timer2);
     };
-  }, []); // Run once on mount
+  }, []);
 
   // Also scroll when bookingData changes (new navigation)
   useEffect(() => {
@@ -82,15 +170,12 @@ export default function BookingDosDonts({
         showsVerticalScrollIndicator={true}
         scrollEnabled={true}
         contentContainerStyle={styles.scrollContent}
-        // Force initial scroll position
         initialScrollIndex={0}
-        // Reset scroll position when layout changes
         onLayout={() => {
           if (scrollViewRef.current) {
             scrollViewRef.current.scrollTo({ x: 0, y: 0, animated: false });
           }
         }}
-        // Maintain visible position at top
         maintainVisibleContentPosition={{
           minIndexForVisible: 0,
         }}
@@ -108,7 +193,7 @@ export default function BookingDosDonts({
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Do's</Text>
-          {dos.map((item, index) => (
+          {finalDos.map((item, index) => (
             <View key={index} style={styles.ruleRow}>
               <Ionicons name="checkmark-circle-outline" size={18} color="#2e7d32" />
               <Text style={styles.ruleText}>{item}</Text>
@@ -118,7 +203,7 @@ export default function BookingDosDonts({
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Don'ts</Text>
-          {donts.map((item, index) => (
+          {finalDonts.map((item, index) => (
             <View key={index} style={styles.ruleRow}>
               <Ionicons name="close-circle-outline" size={18} color="#c62828" />
               <Text style={styles.ruleText}>{item}</Text>
