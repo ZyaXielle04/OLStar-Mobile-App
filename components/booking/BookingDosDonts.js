@@ -45,11 +45,11 @@ const selfDriveDonts = [
 
 // Metro/Manila Car Rental with Driver specific Do's and Don'ts
 const metroDos = [
-  'Double check your pickup location and time before confirming.',
-  'Provide accurate dropoff location to ensure smooth service.',
+  'Double check your booking details (date, time, vehicle, contact info) before paying.',
+  'Make sure the cardholder or e-wallet account matches the booking name.',
   'Keep your booking ID and the e-receipt for reference on the day of your trip.',
-  'Be ready at the designated pickup area 15 minutes before scheduled time.',
-  'Keep your contact number active for driver coordination.',
+  'Pack light and confirm overnight arrangements for the driver if your trip is multi-day.',
+  'Share contact numbers with a family member or emergency contact for safety.',
   'Communicate any special requests (e.g., multiple stops) in advance.'
 ];
 
@@ -58,26 +58,25 @@ const metroDonts = [
   "Don't share your one-time PIN, CVV, or password with anyone — even Olstar staff won't ask.",
   "Don't pay through unofficial channels or accounts not linked to Olstar.",
   "Don't request unreasonable route changes without proper coordination.",
-  "Don't cancel last minute as fees may apply."
+  "Don't pay for stops or fees outside the package without confirming with Olstar support."
 ];
 
 // Provincial Car Rental with Driver specific Do's and Don'ts
 const provincialDos = [
-  'Double check your pickup location, dropoff, and destination before confirming.',
-  'Ensure you have enough time for the long-distance trip.',
+  'Double check your booking details (date, time, vehicle, contact info) before paying.',
+  'Make sure the cardholder or e-wallet account matches the booking name.',
   'Keep your booking ID and the e-receipt for reference on the day of your trip.',
-  'Be ready at the designated pickup area 15 minutes before scheduled time.',
-  'Keep your contact number active for driver coordination.',
-  'Pack efficiently considering vehicle space limitations.',
-  'Communicate any special stops or requirements in advance.'
+  'Pack light and confirm overnight arrangements for the driver if your trip is multi-day.',
+  'Share contact numbers with a family member or emergency contact for safety.',
+  'Communicate any special requests (e.g., multiple stops) in advance.'
 ];
 
 const provincialDonts = [
   "Don't refresh or close the payment window once you've started.",
   "Don't share your one-time PIN, CVV, or password with anyone — even Olstar staff won't ask.",
   "Don't pay through unofficial channels or accounts not linked to Olstar.",
-  "Don't change destination drastically without prior coordination.",
-  "Don't cancel last minute as fees may apply due to long-distance nature."
+  "Don't request unreasonable route changes without proper coordination.",
+  "Don't pay for stops or fees outside the package without confirming with Olstar support."
 ];
 
 // Get the appropriate Do's and Don'ts based on service type

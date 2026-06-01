@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { database } from '../../firebaseConfig';
 import { ref, set, serverTimestamp, get } from 'firebase/database';
 import * as SecureStore from 'expo-secure-store';
+import AppModal from '../AppModal';
 
 export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }) {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
@@ -13,6 +14,12 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [isUserDataLoaded, setIsUserDataLoaded] = useState(false);
+  
+  // Modal state for payment messages
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   
   // Card Payment States
   const [cardDetails, setCardDetails] = useState({
@@ -36,7 +43,6 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
   const [selectedBank, setSelectedBank] = useState(null);
   const [referenceNumber, setReferenceNumber] = useState('');
   
-  const [countdown, setCountdown] = useState(0);
   const [userData, setUserData] = useState(null);
   
   const banks = [
@@ -73,6 +79,21 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
       description: 'Bank transfer via BPI, BDO, Metrobank, etc.'
     }
   ];
+  
+  // Show modal helper
+  const showModal = (message, isRedirectingParam = false, countdownParam = 0) => {
+    setModalMessage(message);
+    setIsRedirecting(isRedirectingParam);
+    setCountdown(countdownParam);
+    setModalVisible(true);
+  };
+
+  const hideModal = () => {
+    setModalVisible(false);
+    setModalMessage('');
+    setIsRedirecting(false);
+    setCountdown(0);
+  };
   
   // Load user data from SecureStore when component mounts
   useEffect(() => {
@@ -118,7 +139,6 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
   
   const checkIfBookingIdExists = async (bookingId) => {
     try {
-      // Try to read with a fallback - if permission denied, assume it doesn't exist
       const bookingRef = ref(database, `pendingBooking/${bookingId}`);
       const snapshot = await get(bookingRef).catch((error) => {
         if (error.code === 'PERMISSION_DENIED') {
@@ -130,7 +150,6 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
       return snapshot.exists();
     } catch (error) {
       console.error('Error checking booking ID:', error);
-      // If permission denied, assume ID doesn't exist and continue
       if (error.message?.includes('permission_denied')) {
         return false;
       }
@@ -170,20 +189,6 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
     return methodMap[methodId] || methodId;
   };
   
-  const getServiceTypeValue = (serviceType) => {
-    const typeMap = {
-      'airport': 'airportTransfer',
-      'airportTransfer': 'airportTransfer',
-      'metro': 'manilaCarRental',
-      'manilaCarRental': 'manilaCarRental',
-      'provincial': 'provincialCarRental',
-      'provincialCarRental': 'provincialCarRental',
-      'selfdrive': 'selfDriveCarRental',
-      'selfDriveCarRental': 'selfDriveCarRental'
-    };
-    return typeMap[serviceType] || 'pendingBooking';
-  };
-  
   const saveAirportTransferToFirebase = async (completedBooking, bookingId) => {
     const now = new Date();
     const bookingRef = ref(database, `pendingBooking/${bookingId}`);
@@ -209,7 +214,7 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
       paymentStatus: 'paid',
       pickup: completedBooking.pickupLocation || '',
       source: 'pending',
-      status: 'active',
+      status: 'pending',
       time: completedBooking.time || '',
       timestamp: serverTimestamp(),
     };
@@ -226,30 +231,45 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
     const clientId = userData?.uid || 'anonymous';
     const clientName = userData?.fullName || completedBooking.passengerDetails?.fullName || '';
     const clientEmail = completedBooking.passengerDetails?.email || '';
+    const contactNumber = completedBooking.passengerDetails?.contactNumber || '';
+    
+    const packageTypeValue = completedBooking.packageOption === 'all_in' ? 'all-inclusive' : 'regular';
+    const vehicleTypeValue = completedBooking.selectedVehicleType?.id?.toLowerCase() || '';
+    const area = 'Manila';
+    const note = completedBooking.passengerDetails?.note || '';
     
     const bookingRecord = {
       amount: parseInt(completedBooking.price?.final) || 0,
+      area: area,
       bookingType: 'manilaCarRental',
       clientId: clientId,
       clientName: clientName,
-      contactNumber: completedBooking.passengerDetails?.contactNumber || '',
-      date: completedBooking.date || '',
+      contactNumber: contactNumber,
+      contacts: [{
+        country: completedBooking.passengerDetails?.countryIsoCode || 'PH',
+        name: clientName,
+        phone: contactNumber
+      }],
+      country: completedBooking.passengerDetails?.countryIsoCode || 'PH',
       email: clientEmail,
-      note: completedBooking.passengerDetails?.specialRequests || '',
-      packageType: completedBooking.selectedPackage?.name || '',
+      name: clientName,
+      phone: contactNumber,
+      dropoffLocation: completedBooking.dropoffLocation || 'Metro Manila Area',
+      duration: completedBooking.selectedDuration?.name || '',
+      note: note,
+      package: packageTypeValue,
+      packageType: packageTypeValue,
       paidAt: now.toISOString(),
-      passengers: parseInt(completedBooking.passengerDetails?.numPassengers) || 0,
       paymentMethod: getPaymentMethodValue(completedBooking.paymentMethod),
       paymentStatus: 'paid',
-      pickup: completedBooking.pickupLocation || '',
-      dropoff: completedBooking.dropoffLocation || '',
-      rentalDuration: completedBooking.rentalDuration || '',
-      rentalHours: completedBooking.rentalHours || '',
-      withDriver: completedBooking.withDriver || false,
+      pickupLocation: completedBooking.pickupLocation || 'Metro Manila Area',
+      pickupTime: completedBooking.pickupTime || '',
+      plannedItinerary: note,
       source: 'pending',
-      status: 'active',
-      time: completedBooking.time || '',
+      status: 'pending',
       timestamp: serverTimestamp(),
+      travelDate: completedBooking.travelDate || '',
+      vehicleType: vehicleTypeValue
     };
     
     await set(bookingRef, bookingRecord);
@@ -285,7 +305,7 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
       returnDate: completedBooking.returnDate || '',
       isRoundTrip: completedBooking.isRoundTrip || false,
       source: 'pending',
-      status: 'active',
+      status: 'pending',
       time: completedBooking.time || '',
       timestamp: serverTimestamp(),
     };
@@ -323,7 +343,7 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
       rentalDuration: completedBooking.selectedDuration?.name || '',
       driverLicenseNumber: completedBooking.passengerDetails?.driverLicenseNumber || '',
       source: 'pending',
-      status: 'active',
+      status: 'pending',
       timestamp: serverTimestamp(),
     };
     
@@ -444,11 +464,11 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
   
   const validateBankTransfer = () => {
     if (!selectedBank) {
-      Alert.alert('Error', 'Please select a bank');
+      showModal('Please select a bank');
       return false;
     }
     if (!referenceNumber.trim()) {
-      Alert.alert('Error', 'Please enter the reference number');
+      showModal('Please enter the reference number');
       return false;
     }
     return true;
@@ -471,20 +491,20 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
         isValid = validateBankTransfer();
         break;
       default:
-        Alert.alert('Error', 'Please select a payment method');
+        showModal('Please select a payment method');
         return;
     }
     
     if (!isValid) return;
     
     if (!isUserDataLoaded) {
-      Alert.alert('Please wait', 'Loading your account information...');
+      showModal('Loading your account information...');
       return;
     }
     
     if (!userData?.uid) {
       console.error('❌ No user UID found! User data:', userData);
-      Alert.alert('Error', 'Unable to identify user. Please log in again.');
+      showModal('Unable to identify user. Please log in again.');
       return;
     }
     
@@ -532,6 +552,9 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
   
   const handleCloseModal = () => {
     setShowPaymentModal(false);
+    if (paymentStatus === 'success') {
+      // The parent will handle navigation
+    }
   };
   
   const renderBookingSummary = () => {
@@ -551,6 +574,19 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
       return serviceNames[bookingData.serviceType] || 'Car Rental';
     };
     
+    // For Metro, get the display values
+    const getMetroDisplayValues = () => {
+      if (bookingData.serviceType !== 'metro') return {};
+      return {
+        vehicleDisplay: bookingData.selectedVehicleType?.name || '',
+        packageDisplay: bookingData.packageOption === 'all_in' ? 'All-inclusive' : 'Regular',
+        durationDisplay: bookingData.selectedDuration?.name || '',
+        passengersDisplay: bookingData.numPassengers || 0
+      };
+    };
+    
+    const metroValues = getMetroDisplayValues();
+    
     return (
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>Booking Summary</Text>
@@ -558,51 +594,103 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
           <Text style={styles.summaryLabel}>Service:</Text>
           <Text style={styles.summaryValue}>{getServiceName()}</Text>
         </View>
+        
+        {/* Metro specific display */}
+        {bookingData.serviceType === 'metro' && (
+          <>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Vehicle:</Text>
+              <Text style={styles.summaryValue}>{metroValues.vehicleDisplay}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Package:</Text>
+              <Text style={styles.summaryValue}>{metroValues.packageDisplay}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Travel Date:</Text>
+              <Text style={styles.summaryValue}>{bookingData.travelDate}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Pickup Time:</Text>
+              <Text style={styles.summaryValue}>{bookingData.pickupTime || 'Flexible'}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Duration:</Text>
+              <Text style={styles.summaryValue}>{metroValues.durationDisplay}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Passengers:</Text>
+              <Text style={styles.summaryValue}>{metroValues.passengersDisplay}</Text>
+            </View>
+          </>
+        )}
+        
+        {/* Airport/Self Drive specific display */}
+        {bookingData.serviceType !== 'metro' && (
+          <>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>
+                {bookingData.serviceType === 'selfdrive' ? 'Vehicle:' : 'Package:'}
+              </Text>
+              <Text style={styles.summaryValue}>
+                {bookingData.selectedUnit?.name || bookingData.selectedPackage?.name || bookingData.selectedCar?.name || 'Standard'}
+              </Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>
+                {bookingData.serviceType === 'selfdrive' ? 'Pickup Date & Time:' : 'Date:'}
+              </Text>
+              <Text style={styles.summaryValue}>
+                {bookingData.serviceType === 'selfdrive' 
+                  ? `${bookingData.pickupDate} at ${bookingData.pickupTime}`
+                  : bookingData.date}
+              </Text>
+            </View>
+            {bookingData.serviceType === 'selfdrive' && bookingData.returnDate && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Return Date & Time:</Text>
+                <Text style={styles.summaryValue}>{bookingData.returnDate}</Text>
+              </View>
+            )}
+            {bookingData.serviceType !== 'selfdrive' && bookingData.time && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Time:</Text>
+                <Text style={styles.summaryValue}>{bookingData.time}</Text>
+              </View>
+            )}
+            {bookingData.passengerDetails?.numPassengers && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Passengers:</Text>
+                <Text style={styles.summaryValue}>{bookingData.passengerDetails.numPassengers}</Text>
+              </View>
+            )}
+            {bookingData.selectedDuration?.name && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Duration:</Text>
+                <Text style={styles.summaryValue}>{bookingData.selectedDuration.name}</Text>
+              </View>
+            )}
+          </>
+        )}
+        
+        <View style={styles.divider} />
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>
-            {bookingData.serviceType === 'selfdrive' ? 'Vehicle:' : 'Package:'}
-          </Text>
-          <Text style={styles.summaryValue}>
-            {bookingData.selectedUnit?.name || bookingData.selectedPackage?.name || bookingData.selectedCar?.name || 'Standard'}
-          </Text>
+          <Text style={styles.summaryLabel}>Base Price:</Text>
+          <Text style={styles.summaryValue}>{formatPrice(bookingData.price?.original)}</Text>
         </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>
-            {bookingData.serviceType === 'selfdrive' ? 'Pickup Date & Time:' : 'Date:'}
-          </Text>
-          <Text style={styles.summaryValue}>
-            {bookingData.serviceType === 'selfdrive' 
-              ? `${bookingData.pickupDate} at ${bookingData.pickupTime}`
-              : bookingData.date}
-          </Text>
-        </View>
-        {bookingData.serviceType === 'selfdrive' && bookingData.returnDate && (
+        {bookingData.price?.discount && (
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Return Date & Time:</Text>
-            <Text style={styles.summaryValue}>{bookingData.returnDate}</Text>
+            <Text style={styles.discountLabel}>
+              {bookingData.price.discount.type === 'percentage' ? `Discount (${bookingData.price.discount.value}%)` : 'Discount'}
+            </Text>
+            <Text style={styles.discountValue}>
+              -{bookingData.price.discount.type === 'fixed' ? formatPrice(bookingData.price.discount.value) : `${bookingData.price.discount.value}%`}
+            </Text>
           </View>
         )}
-        {bookingData.serviceType !== 'selfdrive' && bookingData.time && (
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Time:</Text>
-            <Text style={styles.summaryValue}>{bookingData.time}</Text>
-          </View>
-        )}
-        {bookingData.passengerDetails?.numPassengers && (
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Passengers:</Text>
-            <Text style={styles.summaryValue}>{bookingData.passengerDetails.numPassengers}</Text>
-          </View>
-        )}
-        {bookingData.selectedDuration?.name && (
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Duration:</Text>
-            <Text style={styles.summaryValue}>{bookingData.selectedDuration.name}</Text>
-          </View>
-        )}
-        <View style={[styles.summaryRow, styles.summaryTotal]}>
-          <Text style={styles.summaryTotalLabel}>Total:</Text>
-          <Text style={styles.summaryTotalValue}>{formatPrice(bookingData.price?.final)}</Text>
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>Total:</Text>
+          <Text style={styles.totalValue}>{formatPrice(bookingData.price?.final)}</Text>
         </View>
       </View>
     );
@@ -859,61 +947,71 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
   }
   
   return (
-    <ScrollView style={styles.container}>
-      {renderBookingSummary()}
-      {renderPaymentMethods()}
-      {renderCreditCardForm()}
-      {renderGCashForm()}
-      {renderMayaForm()}
-      {renderBankTransferForm()}
+    <>
+      <AppModal
+        visible={modalVisible}
+        message={modalMessage}
+        isRedirecting={isRedirecting}
+        countdown={countdown}
+        onClose={hideModal}
+      />
       
-      <View style={styles.buttonContainer}>
-        <Pressable
-          style={[styles.payButton, (!selectedPaymentMethod || isProcessing) && styles.payButtonDisabled]}
-          onPress={handlePayment}
-          disabled={!selectedPaymentMethod || isProcessing}
-        >
-          {isProcessing ? (
-            <>
-              <ActivityIndicator size="small" color="#fff" />
-              <Text style={styles.payButtonText}>Processing...</Text>
-            </>
-          ) : (
-            <Text style={styles.payButtonText}>Pay {formatPrice(bookingData.price?.final)}</Text>
-          )}
-        </Pressable>
+      <ScrollView style={styles.container}>
+        {renderBookingSummary()}
+        {renderPaymentMethods()}
+        {renderCreditCardForm()}
+        {renderGCashForm()}
+        {renderMayaForm()}
+        {renderBankTransferForm()}
         
-        <Pressable style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backButtonText}>Back</Text>
-        </Pressable>
-      </View>
-      
-      <Modal visible={showPaymentModal} transparent={true} animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            {paymentStatus === 'success' ? (
+        <View style={styles.buttonContainer}>
+          <Pressable
+            style={[styles.payButton, (!selectedPaymentMethod || isProcessing) && styles.payButtonDisabled]}
+            onPress={handlePayment}
+            disabled={!selectedPaymentMethod || isProcessing}
+          >
+            {isProcessing ? (
               <>
-                <Ionicons name="checkmark-circle" size={80} color="#4caf50" />
-                <Text style={styles.modalTitle}>Payment Successful!</Text>
-                <Text style={styles.modalMessage}>Your booking has been confirmed. A confirmation email has been sent.</Text>
-                {countdown > 0 && <Text style={styles.countdownText}>Closing in {countdown} seconds...</Text>}
-                <Pressable style={styles.modalButton} onPress={handleCloseModal}>
-                  <Text style={styles.modalButtonText}>Continue</Text>
-                </Pressable>
+                <ActivityIndicator size="small" color="#fff" />
+                <Text style={styles.payButtonText}>Processing...</Text>
               </>
             ) : (
-              <>
-                <Ionicons name="close-circle" size={80} color="#ff4d4d" />
-                <Text style={styles.modalTitle}>Payment Failed</Text>
-                <Text style={styles.modalMessage}>Please try again or use a different payment method.</Text>
-                <Pressable style={styles.modalButton} onPress={handleCloseModal}>
-                  <Text style={styles.modalButtonText}>Try Again</Text>
-                </Pressable>
-              </>
+              <Text style={styles.payButtonText}>Pay {formatPrice(bookingData.price?.final)}</Text>
             )}
-          </View>
+          </Pressable>
+          
+          <Pressable style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backButtonText}>Back</Text>
+          </Pressable>
         </View>
-      </Modal>
-    </ScrollView>
+        
+        <Modal visible={showPaymentModal} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {paymentStatus === 'success' ? (
+                <>
+                  <Ionicons name="checkmark-circle" size={80} color="#4caf50" />
+                  <Text style={styles.modalTitle}>Payment Successful!</Text>
+                  <Text style={styles.modalMessage}>Your booking has been confirmed. A confirmation email has been sent.</Text>
+                  {countdown > 0 && <Text style={styles.countdownText}>Closing in {countdown} seconds...</Text>}
+                  <Pressable style={styles.modalButton} onPress={handleCloseModal}>
+                    <Text style={styles.modalButtonText}>Continue</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="close-circle" size={80} color="#ff4d4d" />
+                  <Text style={styles.modalTitle}>Payment Failed</Text>
+                  <Text style={styles.modalMessage}>Please try again or use a different payment method.</Text>
+                  <Pressable style={styles.modalButton} onPress={handleCloseModal}>
+                    <Text style={styles.modalButtonText}>Try Again</Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
+          </View>
+        </Modal>
+      </ScrollView>
+    </>
   );
 }
