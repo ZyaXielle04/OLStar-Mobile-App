@@ -214,7 +214,7 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
       paymentStatus: 'paid',
       pickup: completedBooking.pickupLocation || '',
       source: 'pending',
-      status: 'pending',
+      status: 'unassigned',
       time: completedBooking.time || '',
       timestamp: serverTimestamp(),
     };
@@ -266,7 +266,7 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
       pickupTime: completedBooking.pickupTime || '',
       plannedItinerary: note,
       source: 'pending',
-      status: 'pending',
+      status: 'unassigned',
       timestamp: serverTimestamp(),
       travelDate: completedBooking.travelDate || '',
       vehicleType: vehicleTypeValue
@@ -305,7 +305,7 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
       returnDate: completedBooking.returnDate || '',
       isRoundTrip: completedBooking.isRoundTrip || false,
       source: 'pending',
-      status: 'pending',
+      status: 'unassigned',
       time: completedBooking.time || '',
       timestamp: serverTimestamp(),
     };
@@ -343,7 +343,7 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
       rentalDuration: completedBooking.selectedDuration?.name || '',
       driverLicenseNumber: completedBooking.passengerDetails?.driverLicenseNumber || '',
       source: 'pending',
-      status: 'pending',
+      status: 'unassigned',
       timestamp: serverTimestamp(),
     };
     
