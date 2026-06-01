@@ -58,6 +58,7 @@ export default function MetroForm1({ onBack, onBookNow, initialData }) {
   
   // Realtime data storage
   const [latestRatesData, setLatestRatesData] = useState(null);
+  const [latestDiscountedRates, setLatestDiscountedRates] = useState(null);
   const [latestGlobalDiscount, setLatestGlobalDiscount] = useState(null);
   
   // Passenger Details (for confirm booking)
@@ -113,8 +114,10 @@ export default function MetroForm1({ onBack, onBookNow, initialData }) {
   useEffect(() => {
     const dbRef = ref(database);
     const ratesRef = child(dbRef, '/rates/carRental/withDriver/metroManila');
+    const discountedRatesRef = child(dbRef, '/rates/carRental/withDriver/discountedRates/metroManila');
     const discountRef = child(dbRef, '/rates/carRental/withDriver/globalDiscount');
     
+    // Listen for regular rates
     const unsubscribeRates = onValue(ratesRef, (snapshot) => {
       if (snapshot.exists()) {
         const ratesData = snapshot.val();
@@ -122,26 +125,45 @@ export default function MetroForm1({ onBack, onBookNow, initialData }) {
         setLatestRatesData(ratesData);
         
         if (selectedDuration && selectedVehicleType && packageOption) {
-          calculatePriceWithData(ratesData, latestGlobalDiscount);
+          calculatePriceWithData(ratesData, latestDiscountedRates, latestGlobalDiscount);
         }
       }
     });
     
+    // Listen for discounted rates
+    const unsubscribeDiscountedRates = onValue(discountedRatesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const discountedData = snapshot.val();
+        console.log('🔄 Real-time discounted rates update received for Metro');
+        setLatestDiscountedRates(discountedData);
+        
+        if (selectedDuration && selectedVehicleType && packageOption && latestRatesData) {
+          calculatePriceWithData(latestRatesData, discountedData, latestGlobalDiscount);
+        }
+      } else {
+        setLatestDiscountedRates(null);
+        if (selectedDuration && selectedVehicleType && packageOption && latestRatesData) {
+          calculatePriceWithData(latestRatesData, null, latestGlobalDiscount);
+        }
+      }
+    });
+    
+    // Listen for global discount
     const unsubscribeDiscount = onValue(discountRef, (snapshot) => {
       let discountData = null;
       if (snapshot.exists()) {
         discountData = snapshot.val();
         if (discountData.active === true) {
-          console.log('🔄 Real-time discount update received for Metro:', discountData);
+          console.log('🔄 Real-time global discount update received for Metro:', discountData);
           setLatestGlobalDiscount(discountData);
           
           if (selectedDuration && selectedVehicleType && packageOption && latestRatesData) {
-            calculatePriceWithData(latestRatesData, discountData);
+            calculatePriceWithData(latestRatesData, latestDiscountedRates, discountData);
           }
         } else {
           setLatestGlobalDiscount(null);
           if (selectedDuration && selectedVehicleType && packageOption && latestRatesData) {
-            calculatePriceWithData(latestRatesData, null);
+            calculatePriceWithData(latestRatesData, latestDiscountedRates, null);
           }
         }
       }
@@ -149,6 +171,7 @@ export default function MetroForm1({ onBack, onBookNow, initialData }) {
     
     return () => {
       unsubscribeRates();
+      unsubscribeDiscountedRates();
       unsubscribeDiscount();
     };
   }, [selectedDuration, selectedVehicleType, packageOption]);
@@ -193,9 +216,9 @@ export default function MetroForm1({ onBack, onBookNow, initialData }) {
   // Calculate price when dependencies change
   useEffect(() => {
     if (selectedDuration && selectedVehicleType && packageOption && latestRatesData) {
-      calculatePriceWithData(latestRatesData, latestGlobalDiscount);
+      calculatePriceWithData(latestRatesData, latestDiscountedRates, latestGlobalDiscount);
     }
-  }, [selectedDuration, selectedVehicleType, packageOption, latestRatesData, latestGlobalDiscount]);
+  }, [selectedDuration, selectedVehicleType, packageOption, latestRatesData, latestDiscountedRates, latestGlobalDiscount]);
 
   const loadDurations = async () => {
     try {
@@ -307,91 +330,89 @@ export default function MetroForm1({ onBack, onBookNow, initialData }) {
     );
   };
 
-  const calculatePriceWithData = (ratesData, globalDiscount) => {
+  const calculatePriceWithData = (ratesData, discountedRatesData, globalDiscount) => {
     if (!selectedDuration || !selectedVehicleType || !packageOption) return;
     
     const packageKey = packageOption === 'all_in' ? 'all_in' : 'regular';
     let vehicleKey = selectedVehicleType.id;
     const durationKey = String(selectedDuration.id);
+    let basePrice = null;
     
-    // Handle SUV/MPV mapping - structure is: all_in/SUV/MPV/durationId
+    // Get base price from regular rates
     if (vehicleKey === 'SUV_MPV') {
-      let price = ratesData?.[packageKey]?.['SUV']?.['MPV']?.[durationKey];
-      
-      if (price) {
-        const basePrice = parseInt(price);
-        let finalPrice = basePrice;
-        let discountInfoObj = null;
-        
-        if (globalDiscount && globalDiscount.active === true) {
-          const discountValue = parseFloat(globalDiscount.value);
-          if (globalDiscount.discountType === 'fixed') {
-            finalPrice = Math.max(0, basePrice - discountValue);
-            discountInfoObj = {
-              type: 'fixed',
-              value: discountValue,
-              originalPrice: basePrice,
-              discountedPrice: finalPrice
-            };
-          } else if (globalDiscount.discountType === 'percentage') {
-            finalPrice = Math.round(basePrice * (1 - discountValue / 100));
-            discountInfoObj = {
-              type: 'percentage',
-              value: discountValue,
-              originalPrice: basePrice,
-              discountedPrice: finalPrice
-            };
-          }
-        }
-        
-        setOriginalPrice(basePrice);
-        setCalculatedPrice(finalPrice);
-        setDiscountInfo(discountInfoObj);
-      } else {
-        setCalculatedPrice(null);
-        setOriginalPrice(null);
-        setDiscountInfo(null);
-      }
-      return;
+      basePrice = ratesData?.[packageKey]?.['SUV']?.['MPV']?.[durationKey];
+    } else {
+      basePrice = ratesData?.[packageKey]?.[vehicleKey]?.[durationKey];
     }
     
-    // For Sedan and Van
-    let price = ratesData?.[packageKey]?.[vehicleKey]?.[durationKey];
-    
-    if (price) {
-      const basePrice = parseInt(price);
-      let finalPrice = basePrice;
-      let discountInfoObj = null;
-      
-      if (globalDiscount && globalDiscount.active === true) {
-        const discountValue = parseFloat(globalDiscount.value);
-        if (globalDiscount.discountType === 'fixed') {
-          finalPrice = Math.max(0, basePrice - discountValue);
-          discountInfoObj = {
-            type: 'fixed',
-            value: discountValue,
-            originalPrice: basePrice,
-            discountedPrice: finalPrice
-          };
-        } else if (globalDiscount.discountType === 'percentage') {
-          finalPrice = Math.round(basePrice * (1 - discountValue / 100));
-          discountInfoObj = {
-            type: 'percentage',
-            value: discountValue,
-            originalPrice: basePrice,
-            discountedPrice: finalPrice
-          };
-        }
-      }
-      
-      setOriginalPrice(basePrice);
-      setCalculatedPrice(finalPrice);
-      setDiscountInfo(discountInfoObj);
-    } else {
+    if (!basePrice) {
       setCalculatedPrice(null);
       setOriginalPrice(null);
       setDiscountInfo(null);
+      return;
     }
+    
+    const basePriceNum = parseFloat(basePrice);
+    let finalPrice = basePriceNum;
+    let discountInfoObj = null;
+    let usedDiscountedRate = false;
+    
+    // FIRST: Check for discounted rates (per-vehicle/per-duration specific discounts)
+    if (discountedRatesData) {
+      let discountedPriceValue = null;
+      
+      if (vehicleKey === 'SUV_MPV') {
+        discountedPriceValue = discountedRatesData?.[packageKey]?.['SUV']?.['MPV']?.[durationKey];
+      } else {
+        discountedPriceValue = discountedRatesData?.[packageKey]?.[vehicleKey]?.[durationKey];
+      }
+      
+      if (discountedPriceValue) {
+        const discountedPriceNum = parseFloat(discountedPriceValue);
+        if (discountedPriceNum < basePriceNum) {
+          finalPrice = discountedPriceNum;
+          usedDiscountedRate = true;
+          const discountAmount = basePriceNum - discountedPriceNum;
+          const discountPercentage = Math.round((discountAmount / basePriceNum) * 100);
+          
+          discountInfoObj = {
+            type: 'percentage',
+            value: discountPercentage,
+            originalPrice: basePriceNum,
+            discountedPrice: finalPrice,
+            source: 'discounted_rates'
+          };
+        }
+      }
+    }
+    
+    // SECOND: Apply global discount ONLY if no per-item discounted rate was found
+    if (globalDiscount && globalDiscount.active === true && !usedDiscountedRate) {
+      const discountValue = parseFloat(globalDiscount.value);
+      if (globalDiscount.discountType === 'fixed') {
+        finalPrice = Math.max(0, finalPrice - discountValue);
+        discountInfoObj = {
+          type: 'fixed',
+          value: discountValue,
+          originalPrice: basePriceNum,
+          discountedPrice: finalPrice,
+          source: 'global_discount'
+        };
+      } else if (globalDiscount.discountType === 'percentage') {
+        finalPrice = Math.round(finalPrice * (1 - discountValue / 100));
+        discountInfoObj = {
+          type: 'percentage',
+          value: discountValue,
+          originalPrice: basePriceNum,
+          discountedPrice: finalPrice,
+          source: 'global_discount'
+        };
+      }
+    }
+    
+    setOriginalPrice(basePriceNum);
+    setCalculatedPrice(Math.round(finalPrice));
+    setDiscountInfo(discountInfoObj);
   };
 
   const validatePassengerCount = (vehicleType, passengers) => {
