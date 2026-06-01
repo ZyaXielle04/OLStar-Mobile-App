@@ -24,20 +24,21 @@ export const styles = StyleSheet.create({
     color: '#222',
   },
   summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
+    marginBottom: 4,
   },
   summaryValue: {
     fontSize: 14,
     color: '#222',
     fontWeight: '500',
+    flexWrap: 'wrap',
   },
   summaryTotal: {
     borderBottomWidth: 0,
@@ -52,6 +53,37 @@ export const styles = StyleSheet.create({
     color: '#222',
   },
   summaryTotalValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ff4d4d',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 12,
+  },
+  discountLabel: {
+    fontSize: 14,
+    color: '#4caf50',
+    marginBottom: 4,
+  },
+  discountValue: {
+    fontSize: 14,
+    color: '#4caf50',
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+  },
+  totalLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#222',
+  },
+  totalValue: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#ff4d4d',
@@ -167,6 +199,11 @@ export const styles = StyleSheet.create({
     color: '#007aff',
     marginTop: 10,
   },
+  gcashSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 5,
+  },
   bankOption: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -184,6 +221,7 @@ export const styles = StyleSheet.create({
   bankOptionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   bankLogo: {
     fontSize: 32,
@@ -302,21 +340,6 @@ export const styles = StyleSheet.create({
     color: '#666',
     marginTop: 5,
   },
-  gcashHeader: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  gcashTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#007aff',
-    marginTop: 10,
-  },
-  gcashSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 5,
-  },
   qrCodePlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -330,7 +353,7 @@ export const styles = StyleSheet.create({
     color: '#999',
     marginTop: 10,
   },
-  divider: {
+  paymentDivider: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: 20,

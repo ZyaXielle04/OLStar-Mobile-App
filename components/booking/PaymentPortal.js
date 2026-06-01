@@ -189,6 +189,15 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
     return methodMap[methodId] || methodId;
   };
   
+  const getTripTypeValue = (tripType) => {
+    const tripMap = {
+      'one_way': 'One-way',
+      'round_trip': 'Round Trip',
+      'tour': 'Tour'
+    };
+    return tripMap[tripType] || tripType;
+  };
+  
   const saveAirportTransferToFirebase = async (completedBooking, bookingId) => {
     const now = new Date();
     const bookingRef = ref(database, `pendingBooking/${bookingId}`);
@@ -206,7 +215,7 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
       date: completedBooking.date || '',
       dropoff: completedBooking.dropoffLocation || '',
       email: clientEmail,
-      note: completedBooking.passengerDetails?.specialRequests || '',
+      note: completedBooking.passengerDetails?.specialRequests || completedBooking.passengerDetails?.note || '',
       packageType: completedBooking.selectedPackage?.name || '',
       paidAt: now.toISOString(),
       passengers: parseInt(completedBooking.passengerDetails?.numPassengers) || 0,
@@ -284,29 +293,36 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
     const clientId = userData?.uid || 'anonymous';
     const clientName = userData?.fullName || completedBooking.passengerDetails?.fullName || '';
     const clientEmail = completedBooking.passengerDetails?.email || '';
+    const contactNumber = completedBooking.passengerDetails?.contactNumber || '';
+    const note = completedBooking.passengerDetails?.note || '';
+    
+    const vehicleTypeValue = completedBooking.selectedVehicleType?.id?.toLowerCase() || '';
+    const tripTypeValue = getTripTypeValue(completedBooking.tripType);
+    const destinationName = completedBooking.destination?.name || '';
     
     const bookingRecord = {
       amount: parseInt(completedBooking.price?.final) || 0,
       bookingType: 'provincialCarRental',
       clientId: clientId,
       clientName: clientName,
-      contactNumber: completedBooking.passengerDetails?.contactNumber || '',
-      date: completedBooking.date || '',
+      contactNumber: contactNumber,
       email: clientEmail,
-      note: completedBooking.passengerDetails?.specialRequests || '',
-      packageType: completedBooking.selectedPackage?.name || '',
+      note: note,
       paidAt: now.toISOString(),
-      passengers: parseInt(completedBooking.passengerDetails?.numPassengers) || 0,
       paymentMethod: getPaymentMethodValue(completedBooking.paymentMethod),
       paymentStatus: 'paid',
-      pickup: completedBooking.pickupLocation || '',
-      dropoff: completedBooking.dropoffLocation || '',
-      destination: completedBooking.destination || '',
-      returnDate: completedBooking.returnDate || '',
-      isRoundTrip: completedBooking.isRoundTrip || false,
+      pickupLocation: completedBooking.pickupLocation || '',
+      travelDate: completedBooking.travelDate || '',
+      pickupTime: completedBooking.pickupTime || '',
+      destination: destinationName,
+      destinationId: completedBooking.destination?.id || '',
+      tripType: tripTypeValue,
+      tripTypeId: completedBooking.tripType || '',
+      vehicleType: vehicleTypeValue,
+      vehicleTypeId: completedBooking.selectedVehicleType?.id || '',
+      numPassengers: parseInt(completedBooking.numPassengers) || 0,
       source: 'pending',
       status: 'unassigned',
-      time: completedBooking.time || '',
       timestamp: serverTimestamp(),
     };
     
@@ -331,7 +347,7 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
       contactNumber: completedBooking.passengerDetails?.contactNumber || '',
       date: completedBooking.pickupDate || '',
       email: clientEmail,
-      note: completedBooking.passengerDetails?.specialRequests || '',
+      note: completedBooking.passengerDetails?.specialRequests || completedBooking.passengerDetails?.note || '',
       carType: completedBooking.selectedUnit?.name || '',
       paidAt: now.toISOString(),
       paymentMethod: getPaymentMethodValue(completedBooking.paymentMethod),
@@ -557,35 +573,33 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
     }
   };
   
+  const getServiceName = () => {
+    if (!bookingData) return 'Car Rental';
+    const serviceNames = {
+      'airport': 'Airport Transfer',
+      'airportTransfer': 'Airport Transfer',
+      'metro': 'Metro Manila Car Rental',
+      'manilaCarRental': 'Metro Manila Car Rental',
+      'provincial': 'Provincial Car Rental',
+      'provincialCarRental': 'Provincial Car Rental',
+      'selfdrive': 'Self Drive Car Rental',
+      'selfDriveCarRental': 'Self Drive Car Rental'
+    };
+    return serviceNames[bookingData.serviceType] || 'Car Rental';
+  };
+  
+  const getTripTypeLabel = () => {
+    if (!bookingData?.tripType) return '';
+    switch(bookingData.tripType) {
+      case 'one_way': return 'One-way';
+      case 'round_trip': return 'Round Trip';
+      case 'tour': return 'Tour';
+      default: return bookingData.tripType;
+    }
+  };
+  
   const renderBookingSummary = () => {
     if (!bookingData) return null;
-    
-    const getServiceName = () => {
-      const serviceNames = {
-        'airport': 'Airport Transfer',
-        'airportTransfer': 'Airport Transfer',
-        'metro': 'Metro Manila Car Rental',
-        'manilaCarRental': 'Metro Manila Car Rental',
-        'provincial': 'Provincial Car Rental',
-        'provincialCarRental': 'Provincial Car Rental',
-        'selfdrive': 'Self Drive Car Rental',
-        'selfDriveCarRental': 'Self Drive Car Rental'
-      };
-      return serviceNames[bookingData.serviceType] || 'Car Rental';
-    };
-    
-    // For Metro, get the display values
-    const getMetroDisplayValues = () => {
-      if (bookingData.serviceType !== 'metro') return {};
-      return {
-        vehicleDisplay: bookingData.selectedVehicleType?.name || '',
-        packageDisplay: bookingData.packageOption === 'all_in' ? 'All-inclusive' : 'Regular',
-        durationDisplay: bookingData.selectedDuration?.name || '',
-        passengersDisplay: bookingData.numPassengers || 0
-      };
-    };
-    
-    const metroValues = getMetroDisplayValues();
     
     return (
       <View style={styles.summaryCard}>
@@ -595,20 +609,62 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
           <Text style={styles.summaryValue}>{getServiceName()}</Text>
         </View>
         
-        {/* Metro specific display */}
-        {bookingData.serviceType === 'metro' && (
+        {/* Provincial Car Rental specific display */}
+        {bookingData.serviceType === 'provincial' && (
           <>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Vehicle:</Text>
-              <Text style={styles.summaryValue}>{metroValues.vehicleDisplay}</Text>
+              <Text style={styles.summaryLabel}>Pickup Location:</Text>
+              <Text style={styles.summaryValue}>{bookingData.pickupLocation || 'Not specified'}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Package:</Text>
-              <Text style={styles.summaryValue}>{metroValues.packageDisplay}</Text>
+              <Text style={styles.summaryLabel}>Destination:</Text>
+              <Text style={styles.summaryValue}>{bookingData.destination?.name || 'Not specified'}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Trip Type:</Text>
+              <Text style={styles.summaryValue}>{getTripTypeLabel()}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Vehicle:</Text>
+              <Text style={styles.summaryValue}>{bookingData.selectedVehicleType?.name || 'Not selected'}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Travel Date:</Text>
-              <Text style={styles.summaryValue}>{bookingData.travelDate}</Text>
+              <Text style={styles.summaryValue}>{bookingData.travelDate || 'Not specified'}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Pickup Time:</Text>
+              <Text style={styles.summaryValue}>{bookingData.pickupTime || 'Flexible'}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Passengers:</Text>
+              <Text style={styles.summaryValue}>{bookingData.numPassengers || 0}</Text>
+            </View>
+          </>
+        )}
+        
+        {/* Metro Car Rental specific display */}
+        {bookingData.serviceType === 'metro' && (
+          <>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Pickup Location:</Text>
+              <Text style={styles.summaryValue}>{bookingData.pickupLocation || 'Metro Manila Area'}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Dropoff Location:</Text>
+              <Text style={styles.summaryValue}>{bookingData.dropoffLocation || 'Metro Manila Area'}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Vehicle:</Text>
+              <Text style={styles.summaryValue}>{bookingData.selectedVehicleType?.name || 'Not selected'}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Package:</Text>
+              <Text style={styles.summaryValue}>{bookingData.packageOption === 'all_in' ? 'All-inclusive' : 'Regular'}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Travel Date:</Text>
+              <Text style={styles.summaryValue}>{bookingData.travelDate || 'Not specified'}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Pickup Time:</Text>
@@ -616,60 +672,62 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Duration:</Text>
-              <Text style={styles.summaryValue}>{metroValues.durationDisplay}</Text>
+              <Text style={styles.summaryValue}>{bookingData.selectedDuration?.name || 'Not specified'}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Passengers:</Text>
-              <Text style={styles.summaryValue}>{metroValues.passengersDisplay}</Text>
+              <Text style={styles.summaryValue}>{bookingData.numPassengers || 0}</Text>
             </View>
           </>
         )}
         
-        {/* Airport/Self Drive specific display */}
-        {bookingData.serviceType !== 'metro' && (
+        {/* Airport Transfer specific display */}
+        {bookingData.serviceType === 'airport' && (
           <>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>
-                {bookingData.serviceType === 'selfdrive' ? 'Vehicle:' : 'Package:'}
-              </Text>
-              <Text style={styles.summaryValue}>
-                {bookingData.selectedUnit?.name || bookingData.selectedPackage?.name || bookingData.selectedCar?.name || 'Standard'}
-              </Text>
+              <Text style={styles.summaryLabel}>Pickup Location:</Text>
+              <Text style={styles.summaryValue}>{bookingData.pickupLocation || 'Not specified'}</Text>
             </View>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>
-                {bookingData.serviceType === 'selfdrive' ? 'Pickup Date & Time:' : 'Date:'}
-              </Text>
-              <Text style={styles.summaryValue}>
-                {bookingData.serviceType === 'selfdrive' 
-                  ? `${bookingData.pickupDate} at ${bookingData.pickupTime}`
-                  : bookingData.date}
-              </Text>
+              <Text style={styles.summaryLabel}>Dropoff Location:</Text>
+              <Text style={styles.summaryValue}>{bookingData.dropoffLocation || 'Not specified'}</Text>
             </View>
-            {bookingData.serviceType === 'selfdrive' && bookingData.returnDate && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Date:</Text>
+              <Text style={styles.summaryValue}>{bookingData.date || 'Not specified'}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Time:</Text>
+              <Text style={styles.summaryValue}>{bookingData.time || 'Flexible'}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Passengers:</Text>
+              <Text style={styles.summaryValue}>{bookingData.passengerDetails?.numPassengers || 0}</Text>
+            </View>
+          </>
+        )}
+        
+        {/* Self Drive Car Rental specific display */}
+        {bookingData.serviceType === 'selfdrive' && (
+          <>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Vehicle:</Text>
+              <Text style={styles.summaryValue}>{bookingData.selectedUnit?.name || 'Not selected'}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Pickup Date & Time:</Text>
+              <Text style={styles.summaryValue}>{bookingData.pickupDate} at {bookingData.pickupTime}</Text>
+            </View>
+            {bookingData.returnDate && (
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Return Date & Time:</Text>
                 <Text style={styles.summaryValue}>{bookingData.returnDate}</Text>
               </View>
             )}
-            {bookingData.serviceType !== 'selfdrive' && bookingData.time && (
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Time:</Text>
-                <Text style={styles.summaryValue}>{bookingData.time}</Text>
-              </View>
-            )}
-            {bookingData.passengerDetails?.numPassengers && (
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Passengers:</Text>
-                <Text style={styles.summaryValue}>{bookingData.passengerDetails.numPassengers}</Text>
-              </View>
-            )}
-            {bookingData.selectedDuration?.name && (
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Duration:</Text>
-                <Text style={styles.summaryValue}>{bookingData.selectedDuration.name}</Text>
-              </View>
-            )}
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Duration:</Text>
+              <Text style={styles.summaryValue}>{bookingData.selectedDuration?.name || 'Not specified'}</Text>
+            </View>
           </>
         )}
         

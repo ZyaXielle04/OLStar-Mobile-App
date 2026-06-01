@@ -47,8 +47,12 @@ export default function BookingReceipt({ route, navigation }) {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    const [month, day, year] = dateString.split('-');
-    return `${month}/${day}/${year}`;
+    // Handle MM-DD-YYYY format
+    const parts = dateString.split('-');
+    if (parts.length === 3) {
+      return `${parts[0]}/${parts[1]}/${parts[2]}`;
+    }
+    return dateString;
   };
 
   const getServiceName = () => {
@@ -65,9 +69,212 @@ export default function BookingReceipt({ route, navigation }) {
     return serviceNames[booking.serviceType] || 'Car Rental';
   };
 
+  const getTripTypeLabel = () => {
+    if (!booking?.tripType) return '';
+    switch(booking.tripType) {
+      case 'one_way': return 'One-way';
+      case 'round_trip': return 'Round Trip';
+      case 'tour': return 'Tour';
+      default: return booking.tripType;
+    }
+  };
+
+  const renderServiceSpecificDetails = () => {
+    switch(booking.serviceType) {
+      case 'provincial':
+      case 'provincialCarRental':
+        return (
+          <>
+            <View style={styles.detailRow}>
+              <Ionicons name="location-outline" size={20} color="#666" />
+              <Text style={styles.detailText} numberOfLines={2}>
+                Pickup: {booking.pickupLocation || 'Not specified'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="flag-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Destination: {booking.destination?.name || booking.destination || 'Not specified'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="swap-horizontal-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Trip Type: {getTripTypeLabel()}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="car-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Vehicle: {booking.selectedVehicleType?.name || 'Not specified'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="calendar-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Travel Date: {formatDate(booking.travelDate)}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="time-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Pickup Time: {booking.pickupTime || 'Flexible'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="people-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Passengers: {booking.numPassengers || 1}
+              </Text>
+            </View>
+          </>
+        );
+
+      case 'metro':
+      case 'manilaCarRental':
+        return (
+          <>
+            <View style={styles.detailRow}>
+              <Ionicons name="location-outline" size={20} color="#666" />
+              <Text style={styles.detailText} numberOfLines={2}>
+                Pickup: {booking.pickupLocation || 'Metro Manila Area'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="navigate-outline" size={20} color="#666" />
+              <Text style={styles.detailText} numberOfLines={2}>
+                Dropoff: {booking.dropoffLocation || 'Metro Manila Area'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="car-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Vehicle: {booking.selectedVehicleType?.name || 'Not specified'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="gift-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Package: {booking.packageOption === 'all_in' ? 'All-inclusive' : 'Regular'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="calendar-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Travel Date: {formatDate(booking.travelDate)}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="time-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Pickup Time: {booking.pickupTime || 'Flexible'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="hourglass-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Duration: {booking.selectedDuration?.name || 'Not specified'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="people-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Passengers: {booking.numPassengers || 1}
+              </Text>
+            </View>
+          </>
+        );
+
+      case 'airport':
+      case 'airportTransfer':
+        return (
+          <>
+            <View style={styles.detailRow}>
+              <Ionicons name="location-outline" size={20} color="#666" />
+              <Text style={styles.detailText} numberOfLines={2}>
+                Pickup: {booking.pickupLocation || 'Not specified'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="airplane-outline" size={20} color="#666" />
+              <Text style={styles.detailText} numberOfLines={2}>
+                Dropoff: {booking.dropoffLocation || 'Not specified'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="calendar-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Date: {formatDate(booking.date)}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="time-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Time: {booking.time || 'Flexible'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="people-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Passengers: {booking.passengerDetails?.numPassengers || 1}
+              </Text>
+            </View>
+          </>
+        );
+
+      case 'selfdrive':
+      case 'selfDriveCarRental':
+        return (
+          <>
+            <View style={styles.detailRow}>
+              <Ionicons name="car-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Vehicle: {booking.selectedUnit?.name || 'Not specified'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="location-outline" size={20} color="#666" />
+              <Text style={styles.detailText} numberOfLines={2}>
+                Pickup Location: {booking.pickupLocation || 'Not specified'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="calendar-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Pickup Date: {formatDate(booking.pickupDate)}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="time-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Pickup Time: {booking.pickupTime || 'Flexible'}
+              </Text>
+            </View>
+            {booking.returnDate && (
+              <View style={styles.detailRow}>
+                <Ionicons name="calendar-outline" size={20} color="#666" />
+                <Text style={styles.detailText}>
+                  Return: {formatDate(booking.returnDate)}
+                </Text>
+              </View>
+            )}
+            <View style={styles.detailRow}>
+              <Ionicons name="hourglass-outline" size={20} color="#666" />
+              <Text style={styles.detailText}>
+                Duration: {booking.selectedDuration?.name || 'Not specified'}
+              </Text>
+            </View>
+          </>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   const handleShare = async () => {
     try {
-      const receiptText = `
+      let receiptText = `
 📋 OLSTAR BOOKING RECEIPT
 ━━━━━━━━━━━━━━━━━━━━━━
 
@@ -78,17 +285,50 @@ Status: ${booking.paymentStatus?.toUpperCase() || 'CONFIRMED'}
 ━━━━━━━━━━━━━━━━━━━━━━
 DETAILS
 ━━━━━━━━━━━━━━━━━━━━━━
+`;
 
+      // Add service-specific details to text share
+      if (booking.serviceType === 'provincial') {
+        receiptText += `
+Pickup: ${booking.pickupLocation || 'Not specified'}
+Destination: ${booking.destination?.name || booking.destination || 'Not specified'}
+Trip Type: ${getTripTypeLabel()}
+Vehicle: ${booking.selectedVehicleType?.name || 'Not specified'}
+Travel Date: ${formatDate(booking.travelDate)}
+Pickup Time: ${booking.pickupTime || 'Flexible'}
+Passengers: ${booking.numPassengers || 1}
+`;
+      } else if (booking.serviceType === 'metro') {
+        receiptText += `
+Pickup: ${booking.pickupLocation || 'Metro Manila Area'}
+Dropoff: ${booking.dropoffLocation || 'Metro Manila Area'}
+Vehicle: ${booking.selectedVehicleType?.name || 'Not specified'}
+Package: ${booking.packageOption === 'all_in' ? 'All-inclusive' : 'Regular'}
+Travel Date: ${formatDate(booking.travelDate)}
+Pickup Time: ${booking.pickupTime || 'Flexible'}
+Duration: ${booking.selectedDuration?.name || 'Not specified'}
+Passengers: ${booking.numPassengers || 1}
+`;
+      } else if (booking.serviceType === 'airport') {
+        receiptText += `
+Pickup: ${booking.pickupLocation || 'Not specified'}
+Dropoff: ${booking.dropoffLocation || 'Not specified'}
 Date: ${formatDate(booking.date)}
 Time: ${booking.time || 'Flexible'}
-
-Package: ${booking.selectedPackage?.name || 'Standard'}
-
-${booking.pickupLocation ? `Pickup: ${booking.pickupLocation}` : ''}
-${booking.dropoffLocation ? `Dropoff: ${booking.dropoffLocation}` : ''}
-
 Passengers: ${booking.passengerDetails?.numPassengers || 1}
+`;
+      } else if (booking.serviceType === 'selfdrive') {
+        receiptText += `
+Vehicle: ${booking.selectedUnit?.name || 'Not specified'}
+Pickup: ${booking.pickupLocation || 'Not specified'}
+Pickup Date: ${formatDate(booking.pickupDate)}
+Pickup Time: ${booking.pickupTime || 'Flexible'}
+${booking.returnDate ? `Return: ${formatDate(booking.returnDate)}\n` : ''}
+Duration: ${booking.selectedDuration?.name || 'Not specified'}
+`;
+      }
 
+      receiptText += `
 ━━━━━━━━━━━━━━━━━━━━━━
 PAYMENT
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -189,33 +429,12 @@ Thank you for choosing OLStar! ✨
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Service Details</Text>
             <View style={styles.detailRow}>
-              <Ionicons name="calendar-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                {formatDate(booking.date)} at {booking.time || 'Flexible Time'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
               <Ionicons name="apps-outline" size={20} color="#666" />
               <Text style={styles.detailText}>
-                {getServiceName()} - {booking.selectedPackage?.name || 'Standard Package'}
+                {getServiceName()}
               </Text>
             </View>
-            {booking.pickupLocation && (
-              <View style={styles.detailRow}>
-                <Ionicons name="location-outline" size={20} color="#666" />
-                <Text style={styles.detailText} numberOfLines={2}>
-                  Pickup: {booking.pickupLocation}
-                </Text>
-              </View>
-            )}
-            {booking.dropoffLocation && (
-              <View style={styles.detailRow}>
-                <Ionicons name="navigate-outline" size={20} color="#666" />
-                <Text style={styles.detailText} numberOfLines={2}>
-                  Dropoff: {booking.dropoffLocation}
-                </Text>
-              </View>
-            )}
+            {renderServiceSpecificDetails()}
           </View>
 
           <View style={styles.section}>
@@ -232,13 +451,14 @@ Thank you for choosing OLStar! ✨
               <Ionicons name="call-outline" size={20} color="#666" />
               <Text style={styles.detailText}>{booking.passengerDetails?.contactNumber}</Text>
             </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="people-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                {booking.passengerDetails?.numPassengers} passenger(s)
-                {booking.passengerDetails?.numLuggage && `, ${booking.passengerDetails?.numLuggage} luggage(s)`}
-              </Text>
-            </View>
+            {booking.passengerDetails?.note && (
+              <View style={styles.detailRow}>
+                <Ionicons name="document-text-outline" size={20} color="#666" />
+                <Text style={styles.detailText} numberOfLines={2}>
+                  Note: {booking.passengerDetails.note}
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.section}>
