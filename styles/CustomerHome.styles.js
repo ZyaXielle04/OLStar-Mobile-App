@@ -1,31 +1,284 @@
+// styles/CustomerHome.styles.js
 import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F7F8FC',
+    backgroundColor: '#f8f9fa',
   },
-
   container: {
-    padding: 20,
-    paddingBottom: 100,
+    padding: 16,
+    paddingBottom: 80,
   },
-
-  card: {
-    backgroundColor: '#fff',
+  // Header Section
+  headerSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  greeting: {
+    fontSize: 14,
+    color: '#6c757d',
+    fontWeight: '500',
+  },
+  userName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#212529',
+    marginTop: 4,
+  },
+  notificationIcon: {
+    position: 'relative',
+    padding: 8,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#ff4d4d',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  // Welcome Card
+  welcomeCard: {
+    backgroundColor: '#ff4d4d',
     borderRadius: 20,
     padding: 20,
-    marginBottom: 15,
+    marginBottom: 24,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    shadowColor: '#ff4d4d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
-
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
+  welcomeContent: {
+    flex: 1,
   },
-
-  subtitle: {
-    marginTop: 8,
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  welcomeText: {
     fontSize: 14,
-    color: '#666',
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  exploreButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+  },
+  exploreButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  welcomeDecoration: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+  },
+  // Section
+  section: {
+    marginBottom: 28,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#212529',
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginTop: 2,
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: '#ff4d4d',
+    fontWeight: '600',
+  },
+  // Services Grid
+  servicesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  serviceCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    width: '48%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  serviceIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  serviceTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#212529',
+    marginBottom: 4,
+  },
+  serviceDescription: {
+    fontSize: 12,
+    color: '#6c757d',
+    lineHeight: 16,
+  },
+  // Promotions
+  promotionsScroll: {
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+  },
+  promoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    width: 200,
+    marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  promoIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  promoTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#212529',
+    marginBottom: 4,
+  },
+  promoDescription: {
+    fontSize: 12,
+    color: '#6c757d',
+    lineHeight: 16,
+  },
+  // Recent Bookings
+  recentBookingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  bookingIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#ff4d4d15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  bookingInfo: {
+    flex: 1,
+  },
+  bookingService: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#212529',
+    marginBottom: 4,
+  },
+  bookingDate: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginBottom: 2,
+  },
+  bookingPrice: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#ff4d4d',
+  },
+  // Why Choose Us
+  whyChooseCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 8,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  whyChooseTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#212529',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  featureGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  feature: {
+    flex: 1,
+    minWidth: '45%',
+    alignItems: 'center',
+    gap: 8,
+  },
+  featureText: {
+    fontSize: 12,
+    color: '#6c757d',
+    textAlign: 'center',
+  },
+  bottomPadding: {
+    height: 20,
+  },
+  currentTime: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginTop: 4,
   },
 });

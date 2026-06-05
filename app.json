@@ -7,13 +7,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.olstar.travelapp",
@@ -22,7 +20,6 @@
         "NSPhotoLibraryAddUsageDescription": "Allow OLStar to save booking receipts to your gallery."
       }
     },
-
     "android": {
       "package": "com.olstar.travelapp",
       "adaptiveIcon": {
@@ -35,7 +32,6 @@
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
-
     "web": {
       "favicon": "./assets/favicon.png",
       "config": {
@@ -49,7 +45,6 @@
         }
       }
     },
-
     "plugins": [
       "expo-secure-store",
       "expo-web-browser",
@@ -60,9 +55,9 @@
           "savePhotosPermission": "Allow OLStar to save booking receipts to your gallery.",
           "isAccessMediaLocationEnabled": true
         }
-      ]
+      ],
+      "expo-localization"
     ],
-
     "extra": {
       "eas": {
         "projectId": "6c2579f1-cae5-4855-b7ec-bece42f01b0e"

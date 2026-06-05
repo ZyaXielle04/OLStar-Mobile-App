@@ -2,8 +2,7 @@
 import { View, Text, Pressable, ScrollView, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
-import { useNavigation } from '@react-navigation/native'; // Add this import
+import { useState, useEffect } from 'react';
 import { styles } from '../styles/BookTrip.styles';
 
 // Import reusable forms
@@ -14,9 +13,10 @@ import ProvincialForm1 from '../components/booking/ProvincialForm1';
 import BookingDosDonts from '../components/booking/BookingDosDonts';
 import PaymentPortal from '../components/booking/PaymentPortal';
 
-export default function BookTrip() {
-  const navigation = useNavigation(); // Add this line
-  const [activeForm, setActiveForm] = useState(null);
+export default function BookTrip({ route, navigation }) {
+  const { openForm } = route.params || {}; // Get the form type from navigation params
+  
+  const [activeForm, setActiveForm] = useState(openForm || null); // Use openForm if provided
   const [pendingBooking, setPendingBooking] = useState(null);
   const [showPayment, setShowPayment] = useState(false);
   const [savedFormData, setSavedFormData] = useState(null);
@@ -27,6 +27,15 @@ export default function BookTrip() {
     metro: 'Metro Manila Driver',
     provincial: 'Provincial Driver',
   };
+
+  // Reset active form when openForm changes
+  useEffect(() => {
+    if (openForm) {
+      setActiveForm(openForm);
+      setPendingBooking(null);
+      setShowPayment(false);
+    }
+  }, [openForm]);
 
   const renderServiceCard = ({ title, description, icon, image, formType }) => {
     return (
