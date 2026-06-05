@@ -67,6 +67,7 @@ export default function CustomerBookings({ navigation }) {
         });
         
         console.log(`✅ Found ${bookingsList.length} bookings for user`);
+        console.log('📋 Sample booking data:', bookingsList[0]);
         setBookings(bookingsList);
       } else {
         console.log('No bookings found for this user');
@@ -109,6 +110,17 @@ export default function CustomerBookings({ navigation }) {
       return `${parts[0]}/${parts[1]}/${parts[2]}`;
     }
     return dateString;
+  };
+
+  // Add this function to format vehicle type for display
+  const formatVehicleType = (type) => {
+    if (!type) return 'Vehicle';
+    const types = {
+      'sedan': 'Sedan',
+      'suv_mpv': 'SUV/MPV',
+      'van': 'Van'
+    };
+    return types[type] || type;
   };
 
   const getServiceIcon = (bookingType) => {
@@ -157,13 +169,16 @@ export default function CustomerBookings({ navigation }) {
       return `${booking.pickup || 'Pickup'} → ${booking.dropoff || 'Dropoff'}`;
     }
     if (type === 'manilaCarRental') {
-      return `${booking.vehicleType || 'Vehicle'} • ${booking.duration || 'Duration'}`;
+      // Fix: Format vehicle type for display
+      return `${formatVehicleType(booking.vehicleType)} • ${booking.duration || 'Duration'}`;
     }
     if (type === 'provincialCarRental') {
-      return `${booking.destination || 'Destination'} • ${booking.tripType || 'Trip'}`;
+      // Fix: Format vehicle type for display
+      return `${booking.destination || 'Destination'} • ${booking.tripType || 'Trip'} • ${formatVehicleType(booking.vehicleType)}`;
     }
     if (type === 'selfDriveCarRental') {
-      return `${booking.carType || 'Vehicle'} • ${booking.rentalDuration || 'Duration'}`;
+      // Fix: Format car type for display (similar to vehicle type)
+      return `${formatVehicleType(booking.carType)} • ${booking.rentalDuration || 'Duration'}`;
     }
     return '';
   };
@@ -196,7 +211,7 @@ export default function CustomerBookings({ navigation }) {
   };
 
   const handleBookingPress = (booking) => {
-    // Navigate to CustomerBookingReceipt with booking ID
+    // Navigate to CustomerBookingReceipt with booking data
     navigation.navigate('CustomerBookingReceipt', { 
       bookingId: booking.id,
       booking: booking // Pass the raw booking data for immediate display

@@ -17,10 +17,13 @@ export default function CustomerBookingReceipt({ route, navigation }) {
   const [modalMessage, setModalMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
 
-  // If only bookingId is passed, fetch from Firebase
   useEffect(() => {
     if (!booking && bookingId) {
       fetchBookingDetails();
+    } else if (booking) {
+      const transformed = transformFirebaseBooking(booking, booking.id);
+      setBooking(transformed);
+      setLoading(false);
     }
   }, [bookingId]);
 
@@ -54,10 +57,7 @@ export default function CustomerBookingReceipt({ route, navigation }) {
   const transformFirebaseBooking = (data, id) => {
     const type = data.bookingType;
     
-    // Get payment date - try paidAt first, then timestamp, then paymentDate
     let paymentDateValue = data.paidAt || data.paymentDate || data.timestamp;
-    
-    // If timestamp is a number (epoch), convert it to ISO string
     if (typeof paymentDateValue === 'number') {
       paymentDateValue = new Date(paymentDateValue).toISOString();
     }
@@ -78,7 +78,6 @@ export default function CustomerBookingReceipt({ route, navigation }) {
       email: data.email,
       contactNumber: data.contactNumber,
       note: data.note || '',
-      // Admin fields (can be updated by admin later)
       adminNotes: data.adminNotes || null,
       driverAssigned: data.driverAssigned || null,
       vehicleAssigned: data.vehicleAssigned || null,
@@ -87,13 +86,12 @@ export default function CustomerBookingReceipt({ route, navigation }) {
       adminRemarks: data.adminRemarks || null
     };
 
-    // Airport Transfer specific
     if (type === 'airportTransfer') {
       return {
         ...baseReceipt,
         serviceType: 'airport',
-        pickupLocation: data.pickup,
-        dropoffLocation: data.dropoff,
+        pickupLocation: data.pickup || data.pickupLocation,
+        dropoffLocation: data.dropoff || data.dropoffLocation,
         date: data.date,
         time: data.time,
         passengers: data.passengers,
@@ -101,7 +99,6 @@ export default function CustomerBookingReceipt({ route, navigation }) {
       };
     }
     
-    // Metro/Manila Car Rental specific
     if (type === 'manilaCarRental') {
       return {
         ...baseReceipt,
@@ -118,7 +115,6 @@ export default function CustomerBookingReceipt({ route, navigation }) {
       };
     }
     
-    // Provincial Car Rental specific
     if (type === 'provincialCarRental') {
       return {
         ...baseReceipt,
@@ -131,11 +127,10 @@ export default function CustomerBookingReceipt({ route, navigation }) {
         tripTypeId: data.tripTypeId,
         destination: data.destination,
         destinationId: data.destinationId,
-        numPassengers: data.numPassengers
+        numPassengers: data.numPassengers || data.passengers
       };
     }
     
-    // Self Drive Car Rental specific
     if (type === 'selfDriveCarRental') {
       return {
         ...baseReceipt,
@@ -161,7 +156,7 @@ export default function CustomerBookingReceipt({ route, navigation }) {
   };
 
   const formatPrice = (price) => {
-    if (!price) return '₱0';
+    if (!price && price !== 0) return '₱0';
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
       currency: 'PHP',
@@ -172,58 +167,33 @@ export default function CustomerBookingReceipt({ route, navigation }) {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    const parts = dateString.split('-');
-    if (parts.length === 3) {
-      return `${parts[0]}/${parts[1]}/${parts[2]}`;
+    if (typeof dateString !== 'string') {
+      dateString = String(dateString);
+    }
+    if (dateString.includes('-')) {
+      const parts = dateString.split('-');
+      if (parts.length === 3) {
+        return `${parts[0]}/${parts[1]}/${parts[2]}`;
+      }
     }
     return dateString;
   };
 
   const convertToPhilippineTime = (dateValue) => {
     if (!dateValue) return null;
-    
     try {
-      let date;
-      
-      // Handle epoch timestamp (number)
-      if (typeof dateValue === 'number') {
-        date = new Date(dateValue);
-      } 
-      // Handle string date
-      else if (typeof dateValue === 'string') {
-        date = new Date(dateValue);
-      }
-      // Handle if it's already a Date object
-      else if (dateValue instanceof Date) {
-        date = dateValue;
-      }
-      else {
-        return null;
-      }
-      
-      // Check if date is valid
-      if (isNaN(date.getTime())) {
-        return null;
-      }
-      
-      // Convert to UTC+8 (Philippine Time)
-      // Add 8 hours to UTC time
-      const philippineTime = new Date(date.getTime() + (8 * 60 * 60 * 1000));
-      
-      return philippineTime;
+      let date = typeof dateValue === 'number' ? new Date(dateValue) : new Date(dateValue);
+      if (isNaN(date.getTime())) return null;
+      return new Date(date.getTime() + (8 * 60 * 60 * 1000));
     } catch (error) {
-      console.error('Error converting to Philippine time:', error);
       return null;
     }
   };
 
   const formatFullDate = (dateValue) => {
     if (!dateValue) return 'N/A';
-    
     const philippineDate = convertToPhilippineTime(dateValue);
-    
     if (!philippineDate) return 'N/A';
-    
     try {
       return philippineDate.toLocaleDateString('en-PH', {
         year: 'numeric',
@@ -234,29 +204,6 @@ export default function CustomerBookingReceipt({ route, navigation }) {
         hour12: true
       });
     } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'N/A';
-    }
-  };
-
-  const formatShortDate = (dateValue) => {
-    if (!dateValue) return 'N/A';
-    
-    const philippineDate = convertToPhilippineTime(dateValue);
-    
-    if (!philippineDate) return 'N/A';
-    
-    try {
-      return philippineDate.toLocaleDateString('en-PH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      });
-    } catch (error) {
-      console.error('Error formatting short date:', error);
       return 'N/A';
     }
   };
@@ -278,21 +225,21 @@ export default function CustomerBookingReceipt({ route, navigation }) {
 
   const getTripTypeLabel = () => {
     if (!booking?.tripType) return '';
-    switch(booking.tripType) {
-      case 'One-way': return 'One-way';
-      case 'Round Trip': return 'Round Trip';
-      case 'Tour': return 'Tour';
-      default: return booking.tripType;
-    }
+    const types = {
+      'One-way': 'One-way',
+      'Round Trip': 'Round Trip',
+      'Tour': 'Tour'
+    };
+    return types[booking.tripType] || booking.tripType;
   };
 
   const getStatusColor = () => {
     if (!booking) return '#666';
     const status = booking?.paymentStatus || booking?.status;
-    if (status === 'paid' || status === 'CONFIRMED') return '#4caf50';
-    if (status === 'pending' || status === 'PENDING') return '#ff9800';
-    if (status === 'cancelled' || status === 'CANCELLED') return '#f44336';
-    if (status === 'completed' || status === 'COMPLETED') return '#2196f3';
+    if (status === 'paid') return '#4caf50';
+    if (status === 'pending') return '#ff9800';
+    if (status === 'cancelled') return '#f44336';
+    if (status === 'completed') return '#2196f3';
     if (status === 'unassigned') return '#ff9800';
     return '#666';
   };
@@ -308,6 +255,53 @@ export default function CustomerBookingReceipt({ route, navigation }) {
     return status?.toUpperCase() || 'CONFIRMED';
   };
 
+  const formatVehicleType = (type) => {
+    if (!type) return 'Not specified';
+    const types = {
+      'sedan': 'Sedan',
+      'suv_mpv': 'SUV/MPV',
+      'van': 'Van'
+    };
+    return types[type] || type;
+  };
+
+  const renderDetailItem = (icon, label, value) => {
+    // Don't render if value is null, undefined, or empty
+    if (value === null || value === undefined) return null;
+    
+    let displayValue = '';
+    
+    // Convert different types to string safely
+    if (typeof value === 'string') {
+      displayValue = value;
+    } else if (typeof value === 'number') {
+      displayValue = value.toString();
+    } else if (typeof value === 'boolean') {
+      displayValue = value ? 'Yes' : 'No';
+    } else if (value instanceof Date) {
+      displayValue = value.toLocaleDateString();
+    } else {
+      displayValue = String(value);
+    }
+    
+    // Don't render empty strings
+    if (!displayValue || displayValue.trim() === '') {
+      return null;
+    }
+    
+    return (
+      <View style={styles.detailRow}>
+        <View style={styles.detailIcon}>
+          <Ionicons name={icon} size={20} color="#6c757d" />
+        </View>
+        <View style={styles.detailContent}>
+          <Text style={styles.detailLabel}>{label}</Text>
+          <Text style={styles.detailText}>{displayValue}</Text>
+        </View>
+      </View>
+    );
+  };
+
   const renderServiceSpecificDetails = () => {
     if (!booking) return null;
     
@@ -315,245 +309,114 @@ export default function CustomerBookingReceipt({ route, navigation }) {
       case 'provincial':
       case 'provincialCarRental':
         return (
-          <>
-            <View style={styles.detailRow}>
-              <Ionicons name="location-outline" size={20} color="#666" />
-              <Text style={styles.detailText} numberOfLines={2}>
-                Pickup: {booking.pickupLocation || 'Not specified'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="flag-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Destination: {booking.destination || 'Not specified'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="swap-horizontal-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Trip Type: {getTripTypeLabel()}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="car-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Vehicle: {booking.vehicleType || 'Not specified'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="calendar-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Travel Date: {formatDate(booking.travelDate)}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="time-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Pickup Time: {booking.pickupTime || 'Flexible'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="people-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Passengers: {booking.numPassengers || 1}
-              </Text>
-            </View>
-          </>
+          <View style={styles.detailCard}>
+            {renderDetailItem('location-outline', 'Pickup Location', booking.pickupLocation)}
+            {renderDetailItem('flag-outline', 'Destination', booking.destination)}
+            {renderDetailItem('swap-horizontal-outline', 'Trip Type', getTripTypeLabel())}
+            {renderDetailItem('car-outline', 'Vehicle Type', formatVehicleType(booking.vehicleType))}
+            {renderDetailItem('calendar-outline', 'Travel Date', formatDate(booking.travelDate))}
+            {renderDetailItem('time-outline', 'Pickup Time', booking.pickupTime || 'Flexible')}
+            {renderDetailItem('people-outline', 'Number of Passengers', booking.numPassengers ? String(booking.numPassengers) : '1')}
+          </View>
         );
 
       case 'metro':
       case 'manilaCarRental':
         return (
-          <>
-            <View style={styles.detailRow}>
-              <Ionicons name="location-outline" size={20} color="#666" />
-              <Text style={styles.detailText} numberOfLines={2}>
-                Pickup: {booking.pickupLocation || 'Metro Manila Area'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="navigate-outline" size={20} color="#666" />
-              <Text style={styles.detailText} numberOfLines={2}>
-                Dropoff: {booking.dropoffLocation || 'Metro Manila Area'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="car-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Vehicle: {booking.vehicleType || 'Not specified'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="gift-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Package: {booking.package === 'all-inclusive' ? 'All-inclusive' : 'Regular'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="calendar-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Travel Date: {formatDate(booking.travelDate)}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="time-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Pickup Time: {booking.pickupTime || 'Flexible'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="hourglass-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Duration: {booking.duration || 'Not specified'}
-              </Text>
-            </View>
-          </>
+          <View style={styles.detailCard}>
+            {renderDetailItem('location-outline', 'Pickup Location', booking.pickupLocation || 'Metro Manila Area')}
+            {renderDetailItem('navigate-outline', 'Dropoff Location', booking.dropoffLocation || 'Metro Manila Area')}
+            {renderDetailItem('car-outline', 'Vehicle Type', formatVehicleType(booking.vehicleType))}
+            {renderDetailItem('gift-outline', 'Package', booking.package === 'all-inclusive' ? 'All-inclusive' : 'Regular')}
+            {renderDetailItem('calendar-outline', 'Travel Date', formatDate(booking.travelDate))}
+            {renderDetailItem('time-outline', 'Pickup Time', booking.pickupTime || 'Flexible')}
+            {renderDetailItem('hourglass-outline', 'Duration', booking.duration || 'Not specified')}
+          </View>
         );
 
       case 'airport':
       case 'airportTransfer':
         return (
-          <>
-            <View style={styles.detailRow}>
-              <Ionicons name="location-outline" size={20} color="#666" />
-              <Text style={styles.detailText} numberOfLines={2}>
-                Pickup: {booking.pickupLocation || 'Not specified'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="airplane-outline" size={20} color="#666" />
-              <Text style={styles.detailText} numberOfLines={2}>
-                Dropoff: {booking.dropoffLocation || 'Not specified'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="calendar-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Date: {formatDate(booking.date)}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="time-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Time: {booking.time || 'Flexible'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="people-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Passengers: {booking.passengers || 1}
-              </Text>
-            </View>
-          </>
+          <View style={styles.detailCard}>
+            {renderDetailItem('location-outline', 'Pickup Location', booking.pickupLocation)}
+            {renderDetailItem('airplane-outline', 'Dropoff Location', booking.dropoffLocation)}
+            {renderDetailItem('calendar-outline', 'Date', formatDate(booking.date))}
+            {renderDetailItem('time-outline', 'Time', booking.time || 'Flexible')}
+            {renderDetailItem('people-outline', 'Passengers', booking.passengers ? String(booking.passengers) : '1')}
+          </View>
         );
 
       case 'selfdrive':
       case 'selfDriveCarRental':
         return (
-          <>
-            <View style={styles.detailRow}>
-              <Ionicons name="car-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Vehicle: {booking.carType || 'Not specified'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="location-outline" size={20} color="#666" />
-              <Text style={styles.detailText} numberOfLines={2}>
-                Pickup Location: {booking.pickupLocation || 'Not specified'}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="calendar-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Pickup Date: {formatDate(booking.pickupDate)}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="time-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Pickup Time: {booking.pickupTime || 'Flexible'}
-              </Text>
-            </View>
-            {booking.returnDateTime && (
-              <View style={styles.detailRow}>
-                <Ionicons name="calendar-outline" size={20} color="#666" />
-                <Text style={styles.detailText}>
-                  Return: {formatDate(booking.returnDateTime)}
-                </Text>
-              </View>
-            )}
-            <View style={styles.detailRow}>
-              <Ionicons name="hourglass-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                Duration: {booking.rentalDuration || 'Not specified'}
-              </Text>
-            </View>
-            {booking.driverLicenseNumber && (
-              <View style={styles.detailRow}>
-                <Ionicons name="id-card-outline" size={20} color="#666" />
-                <Text style={styles.detailText}>
-                  License: {booking.driverLicenseNumber}
-                </Text>
-              </View>
-            )}
-          </>
+          <View style={styles.detailCard}>
+            {renderDetailItem('car-outline', 'Vehicle Type', booking.carType || 'Not specified')}
+            {renderDetailItem('location-outline', 'Pickup Location', booking.pickupLocation)}
+            {renderDetailItem('navigate-outline', 'Dropoff Location', booking.dropoffLocation)}
+            {renderDetailItem('calendar-outline', 'Pickup Date', formatDate(booking.pickupDate))}
+            {renderDetailItem('time-outline', 'Pickup Time', booking.pickupTime || 'Flexible')}
+            {booking.returnDateTime ? renderDetailItem('calendar-outline', 'Return Date', formatDate(booking.returnDateTime)) : null}
+            {renderDetailItem('hourglass-outline', 'Duration', booking.rentalDuration || 'Not specified')}
+            {booking.driverLicenseNumber ? renderDetailItem('id-card-outline', 'License Number', booking.driverLicenseNumber) : null}
+          </View>
         );
 
       default:
-        return null;
+        return (
+          <View style={styles.detailCard}>
+            <Text style={styles.detailText}>No additional details available</Text>
+          </View>
+        );
     }
   };
 
   const renderAdminUpdates = () => {
     if (!booking) return null;
     
-    // Check if there are any admin updates
-    const hasDriver = booking.driverAssigned;
-    const hasVehicle = booking.vehicleAssigned;
-    const hasAdminNotes = booking.adminNotes;
-    const hasAdminRemarks = booking.adminRemarks;
-    const hasStatusUpdates = booking.statusUpdates && booking.statusUpdates.length > 0;
+    const hasUpdates = booking.driverAssigned || booking.vehicleAssigned || 
+                      booking.adminNotes || booking.adminRemarks || 
+                      (booking.statusUpdates && booking.statusUpdates.length > 0);
 
-    if (!hasDriver && !hasVehicle && !hasAdminNotes && !hasAdminRemarks && !hasStatusUpdates) {
-      return null;
-    }
+    if (!hasUpdates) return null;
 
     return (
       <View style={styles.adminSection}>
-        <Text style={styles.sectionTitle}>Updates from Admin</Text>
+        <View style={styles.adminHeader}>
+          <Ionicons name="shield-checkmark-outline" size={24} color="#1976d2" />
+          <Text style={styles.adminTitle}>Admin Updates</Text>
+        </View>
         
-        {booking.driverAssigned && (
+        {booking.driverAssigned ? (
           <View style={styles.adminRow}>
-            <Ionicons name="person-circle-outline" size={20} color="#2196f3" />
+            <Ionicons name="person-circle-outline" size={20} color="#1976d2" />
             <View style={styles.adminContent}>
               <Text style={styles.adminLabel}>Driver Assigned</Text>
               <Text style={styles.adminValue}>{booking.driverAssigned}</Text>
             </View>
           </View>
-        )}
+        ) : null}
         
-        {booking.vehicleAssigned && (
+        {booking.vehicleAssigned ? (
           <View style={styles.adminRow}>
-            <Ionicons name="car-outline" size={20} color="#2196f3" />
+            <Ionicons name="car-outline" size={20} color="#1976d2" />
             <View style={styles.adminContent}>
               <Text style={styles.adminLabel}>Vehicle Assigned</Text>
               <Text style={styles.adminValue}>{booking.vehicleAssigned}</Text>
             </View>
           </View>
-        )}
+        ) : null}
         
-        {booking.adminNotes && (
+        {booking.adminNotes ? (
           <View style={styles.adminRow}>
             <Ionicons name="document-text-outline" size={20} color="#ff9800" />
             <View style={styles.adminContent}>
-              <Text style={styles.adminLabel}>Notes</Text>
+              <Text style={styles.adminLabel}>Important Notes</Text>
               <Text style={styles.adminValue}>{booking.adminNotes}</Text>
             </View>
           </View>
-        )}
+        ) : null}
         
-        {booking.adminRemarks && (
+        {booking.adminRemarks ? (
           <View style={styles.adminRow}>
             <Ionicons name="chatbubble-outline" size={20} color="#ff9800" />
             <View style={styles.adminContent}>
@@ -561,13 +424,13 @@ export default function CustomerBookingReceipt({ route, navigation }) {
               <Text style={styles.adminValue}>{booking.adminRemarks}</Text>
             </View>
           </View>
-        )}
+        ) : null}
         
         {booking.statusUpdates && booking.statusUpdates.map((update, index) => (
           <View key={index} style={styles.updateRow}>
-            <Ionicons name="time-outline" size={16} color="#999" />
+            <Ionicons name="time-outline" size={16} color="#6c757d" />
             <Text style={styles.updateText}>
-              {update.message} - {formatFullDate(update.timestamp)}
+              {update.message || ''} - {formatFullDate(update.timestamp)}
             </Text>
           </View>
         ))}
@@ -580,74 +443,77 @@ export default function CustomerBookingReceipt({ route, navigation }) {
     
     try {
       let receiptText = `
-📋 OLSTAR BOOKING RECEIPT
+━━━━━━━━━━━━━━━━━━━━━━
+   OLSTAR BOOKING RECEIPT
 ━━━━━━━━━━━━━━━━━━━━━━
 
-Booking ID: ${booking.bookingId}
+Booking ID: ${booking.bookingId || booking.id}
 Service: ${getServiceName()}
 Status: ${getStatusText()}
 
 ━━━━━━━━━━━━━━━━━━━━━━
-DETAILS
+      DETAILS
 ━━━━━━━━━━━━━━━━━━━━━━
 `;
-
-      // Add service-specific details to text share
-      if (booking.serviceType === 'provincial') {
+      
+      // Add service-specific details to share text
+      if (booking.serviceType === 'provincial' || booking.serviceType === 'provincialCarRental') {
         receiptText += `
-Pickup: ${booking.pickupLocation || 'Not specified'}
+Pickup Location: ${booking.pickupLocation || 'Not specified'}
 Destination: ${booking.destination || 'Not specified'}
 Trip Type: ${getTripTypeLabel()}
-Vehicle: ${booking.vehicleType || 'Not specified'}
+Vehicle Type: ${formatVehicleType(booking.vehicleType)}
 Travel Date: ${formatDate(booking.travelDate)}
 Pickup Time: ${booking.pickupTime || 'Flexible'}
-Passengers: ${booking.numPassengers || 1}
+Passengers: ${booking.numPassengers || '1'}
 `;
-      } else if (booking.serviceType === 'metro') {
+      } else if (booking.serviceType === 'metro' || booking.serviceType === 'manilaCarRental') {
         receiptText += `
-Pickup: ${booking.pickupLocation || 'Metro Manila Area'}
-Dropoff: ${booking.dropoffLocation || 'Metro Manila Area'}
-Vehicle: ${booking.vehicleType || 'Not specified'}
+Pickup Location: ${booking.pickupLocation || 'Metro Manila Area'}
+Dropoff Location: ${booking.dropoffLocation || 'Metro Manila Area'}
+Vehicle Type: ${formatVehicleType(booking.vehicleType)}
 Package: ${booking.package === 'all-inclusive' ? 'All-inclusive' : 'Regular'}
 Travel Date: ${formatDate(booking.travelDate)}
 Pickup Time: ${booking.pickupTime || 'Flexible'}
 Duration: ${booking.duration || 'Not specified'}
 `;
-      } else if (booking.serviceType === 'airport') {
+      } else if (booking.serviceType === 'airport' || booking.serviceType === 'airportTransfer') {
         receiptText += `
-Pickup: ${booking.pickupLocation || 'Not specified'}
-Dropoff: ${booking.dropoffLocation || 'Not specified'}
+Pickup Location: ${booking.pickupLocation || 'Not specified'}
+Dropoff Location: ${booking.dropoffLocation || 'Not specified'}
 Date: ${formatDate(booking.date)}
 Time: ${booking.time || 'Flexible'}
-Passengers: ${booking.passengers || 1}
+Passengers: ${booking.passengers || '1'}
 `;
-      } else if (booking.serviceType === 'selfdrive') {
+      } else if (booking.serviceType === 'selfdrive' || booking.serviceType === 'selfDriveCarRental') {
         receiptText += `
 Vehicle: ${booking.carType || 'Not specified'}
-Pickup: ${booking.pickupLocation || 'Not specified'}
+Pickup Location: ${booking.pickupLocation || 'Not specified'}
+Dropoff Location: ${booking.dropoffLocation || 'Not specified'}
 Pickup Date: ${formatDate(booking.pickupDate)}
 Pickup Time: ${booking.pickupTime || 'Flexible'}
-${booking.returnDateTime ? `Return: ${formatDate(booking.returnDateTime)}\n` : ''}
+${booking.returnDateTime ? `Return Date: ${formatDate(booking.returnDateTime)}\n` : ''}
 Duration: ${booking.rentalDuration || 'Not specified'}
+${booking.driverLicenseNumber ? `License Number: ${booking.driverLicenseNumber}\n` : ''}
 `;
       }
-
+      
       receiptText += `
 ━━━━━━━━━━━━━━━━━━━━━━
-PAYMENT
+      PAYMENT
 ━━━━━━━━━━━━━━━━━━━━━━
 
 Amount: ${formatPrice(booking.amount)}
 Payment Method: ${booking.paymentMethod?.toUpperCase() || 'N/A'}
-Payment Date: ${formatFullDate(booking.paymentDate)}
+Payment Date: ${formatFullDate(booking.paymentDate || booking.timestamp)}
 
 ━━━━━━━━━━━━━━━━━━━━━━
-CONTACT
+      CONTACT
 ━━━━━━━━━━━━━━━━━━━━━━
 
-Name: ${booking.clientName}
-Email: ${booking.email}
-Contact: ${booking.contactNumber}
+Name: ${booking.clientName || 'N/A'}
+Email: ${booking.email || 'N/A'}
+Contact: ${booking.contactNumber || 'N/A'}
 
 ━━━━━━━━━━━━━━━━━━━━━━
 Thank you for choosing OLStar! ✨
@@ -655,11 +521,11 @@ Thank you for choosing OLStar! ✨
       
       await Share.share({
         message: receiptText,
-        title: `OLStar Booking Receipt - ${booking.bookingId}`
+        title: `OLStar Booking Receipt - ${booking.bookingId || booking.id}`
       });
       showModal('Receipt shared successfully!', true);
     } catch (error) {
-      console.error('Error sharing receipt:', error);
+      console.error('Share error:', error);
       showModal('Failed to share receipt. Please try again.', false);
     }
   };
@@ -686,6 +552,9 @@ Thank you for choosing OLStar! ✨
     );
   }
 
+  const statusColor = getStatusColor();
+  const statusText = getStatusText();
+
   return (
     <SafeAreaView style={styles.container}>
       <AppModal
@@ -695,120 +564,123 @@ Thank you for choosing OLStar! ✨
         onClose={() => setModalVisible(false)}
       />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.receiptContainer}>
-          <View style={styles.header}>
-            <View style={[styles.successIcon, { backgroundColor: getStatusColor() + '20' }]}>
-              <Ionicons name="checkmark-circle" size={60} color={getStatusColor()} />
+          {/* Colored Header */}
+          <View style={[styles.headerGradient, { backgroundColor: statusColor }]}>
+            <View style={styles.successIcon}>
+              <Ionicons name="checkmark-circle" size={50} color="#ffffff" />
             </View>
-            <Text style={styles.title}>Booking {getStatusText() === 'CONFIRMED' ? 'Confirmed! 🎉' : getStatusText()}</Text>
+            <Text style={styles.title}>Booking {statusText === 'CONFIRMED' ? 'Confirmed!' : statusText}</Text>
             <Text style={styles.subtitle}>
-              {getStatusText() === 'CONFIRMED' 
+              {statusText === 'CONFIRMED' 
                 ? 'Your booking has been successfully confirmed' 
                 : 'Your booking details are shown below'}
             </Text>
           </View>
 
+          {/* Floating Booking ID Card */}
           <View style={styles.bookingIdCard}>
-            <Text style={styles.bookingIdLabel}>BOOKING ID</Text>
-            <Text style={styles.bookingIdValue}>{booking.bookingId || booking.id}</Text>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor() + '15' }]}>
-              <Text style={[styles.statusText, { color: getStatusColor() }]}>{getStatusText()}</Text>
+            <View style={styles.bookingIdInfo}>
+              <Text style={styles.bookingIdLabel}>BOOKING ID</Text>
+              <Text style={styles.bookingIdValue}>{booking.bookingId || booking.id}</Text>
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: statusColor + '15' }]}>
+              <Text style={[styles.statusText, { color: statusColor }]}>{statusText}</Text>
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Service Details</Text>
-            <View style={styles.detailRow}>
-              <Ionicons name="apps-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>
-                {getServiceName()}
-              </Text>
-            </View>
-            {renderServiceSpecificDetails()}
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Passenger Details</Text>
-            <View style={styles.detailRow}>
-              <Ionicons name="person-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>{booking.clientName}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="mail-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>{booking.email}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="call-outline" size={20} color="#666" />
-              <Text style={styles.detailText}>{booking.contactNumber}</Text>
-            </View>
-            {booking.note && (
-              <View style={styles.detailRow}>
-                <Ionicons name="document-text-outline" size={20} color="#666" />
-                <Text style={styles.detailText} numberOfLines={2}>
-                  Note: {booking.note}
-                </Text>
+          <View style={styles.contentWrapper}>
+            {/* Service Details */}
+            <View style={styles.section}>
+              <View style={styles.sectionTitle}>
+                <Ionicons name="car-sport-outline" size={22} color="#ff4d4d" />
+                <Text style={styles.sectionTitleText}>Service Details</Text>
               </View>
-            )}
-          </View>
+              {renderServiceSpecificDetails()}
+            </View>
 
-          {renderAdminUpdates()}
+            {/* Passenger Details */}
+            <View style={styles.section}>
+              <View style={styles.sectionTitle}>
+                <Ionicons name="person-outline" size={22} color="#ff4d4d" />
+                <Text style={styles.sectionTitleText}>Passenger Details</Text>
+              </View>
+              <View style={styles.detailCard}>
+                {renderDetailItem('person-outline', 'Full Name', booking.clientName)}
+                {renderDetailItem('mail-outline', 'Email Address', booking.email)}
+                {renderDetailItem('call-outline', 'Contact Number', booking.contactNumber)}
+                {booking.note ? renderDetailItem('document-text-outline', 'Special Request', booking.note) : null}
+              </View>
+            </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Payment Summary</Text>
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Total Amount</Text>
-              <Text style={styles.priceValue}>{formatPrice(booking.amount)}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total Paid</Text>
-              <Text style={styles.totalValue}>{formatPrice(booking.amount)}</Text>
-            </View>
-            <View style={styles.paymentMethodRow}>
-              <Ionicons name="card-outline" size={18} color="#666" />
-              <Text style={styles.paymentMethodText}>
-                Paid via {booking.paymentMethod?.toUpperCase()}
-              </Text>
-            </View>
-            <View style={styles.paymentDateRow}>
-              <Ionicons name="calendar-outline" size={18} color="#666" />
-              <Text style={styles.paymentDateText}>
-                Paid on: {formatFullDate(booking.timestamp)}
-              </Text>
-            </View>
-          </View>
+            {/* Admin Updates */}
+            {renderAdminUpdates()}
 
-          <View style={styles.notesSection}>
-            <Text style={styles.notesTitle}>Important Notes 📝</Text>
-            <View style={styles.noteItem}>
-              <Ionicons name="time-outline" size={16} color="#ff9800" />
-              <Text style={styles.noteText}>Please be ready 15 minutes before scheduled time</Text>
+            {/* Payment Summary */}
+            <View style={styles.section}>
+              <View style={styles.sectionTitle}>
+                <Ionicons name="card-outline" size={22} color="#ff4d4d" />
+                <Text style={styles.sectionTitleText}>Payment Summary</Text>
+              </View>
+              <View style={styles.paymentSummary}>
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Subtotal</Text>
+                  <Text style={styles.priceValue}>{formatPrice(booking.amount)}</Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Total Paid</Text>
+                  <Text style={styles.totalValue}>{formatPrice(booking.amount)}</Text>
+                </View>
+                <View style={styles.paymentMethodRow}>
+                  <Ionicons name="card-outline" size={18} color="#6c757d" />
+                  <Text style={styles.paymentMethodText}>
+                    Paid via {booking.paymentMethod?.toUpperCase() || 'N/A'}
+                  </Text>
+                </View>
+                <View style={styles.paymentDateRow}>
+                  <Ionicons name="calendar-outline" size={16} color="#6c757d" />
+                  <Text style={styles.paymentDateText}>
+                    Paid on: {formatFullDate(booking.timestamp)}
+                  </Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.noteItem}>
-              <Ionicons name="call-outline" size={16} color="#ff9800" />
-              <Text style={styles.noteText}>Contact us at +63 123 456 7890 for assistance</Text>
-            </View>
-            <View style={styles.noteItem}>
-              <Ionicons name="mail-outline" size={16} color="#ff9800" />
-              <Text style={styles.noteText}>A confirmation email has been sent to your email</Text>
+
+            {/* Important Notes */}
+            <View style={styles.notesSection}>
+              <View style={styles.notesHeader}>
+                <Ionicons name="bulb-outline" size={22} color="#e65100" />
+                <Text style={styles.notesTitle}>Important Notes</Text>
+              </View>
+              <View style={styles.noteItem}>
+                <Ionicons name="time-outline" size={16} color="#ff9800" />
+                <Text style={styles.noteText}>Please be ready 15 minutes before scheduled time</Text>
+              </View>
+              <View style={styles.noteItem}>
+                <Ionicons name="call-outline" size={16} color="#ff9800" />
+                <Text style={styles.noteText}>Contact us at +63 123 456 7890 for assistance</Text>
+              </View>
+              <View style={styles.noteItem}>
+                <Ionicons name="mail-outline" size={16} color="#ff9800" />
+                <Text style={styles.noteText}>A confirmation email has been sent to your email</Text>
+              </View>
             </View>
           </View>
         </View>
 
+        {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           <Pressable style={styles.shareButton} onPress={handleShare}>
             <Ionicons name="share-social-outline" size={20} color="#fff" />
-            <Text style={styles.shareButtonText}>Share Receipt</Text>
+            <Text style={styles.shareButtonText}>Share</Text>
+          </Pressable>
+          <Pressable style={styles.homeButton} onPress={() => navigation.navigate('CustomerBookings')}>
+            <Ionicons name="bookmark-outline" size={20} color="#fff" />
+            <Text style={styles.homeButtonText}>My Bookings</Text>
           </Pressable>
         </View>
-
-        <Pressable 
-          style={styles.homeButton}
-          onPress={() => navigation.navigate('CustomerBookings')}
-        >
-          <Text style={styles.homeButtonText}>Back to My Bookings</Text>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
