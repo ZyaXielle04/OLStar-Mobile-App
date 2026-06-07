@@ -103,7 +103,7 @@ export const styles = StyleSheet.create({
   // Autocomplete Styles - FIXED for better overlay
   autocompleteWrapper: {
     position: 'relative',
-    zIndex: 9999,
+    zIndex: 1,
     marginBottom: getResponsiveSize(3, 5, 8),
     overflow: 'visible',
   },
@@ -113,12 +113,10 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     maxHeight: 200,
-    position: 'absolute',
-    top: getResponsiveSize(50, 55, 60),
-    left: 0,
-    right: 0,
-    zIndex: 10000,
-    elevation: 100,
+    marginTop: getResponsiveSize(2, 3, 5),
+    marginBottom: getResponsiveSize(8, 10, 12),
+    zIndex: 1000,
+    elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -135,6 +133,7 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
+    gap: 10,
   },
   suggestionItemLast: {
     borderBottomWidth: 0,
@@ -142,7 +141,6 @@ export const styles = StyleSheet.create({
   suggestionText: {
     fontSize: getResponsiveFontSize(12, 14),
     color: '#333',
-    marginLeft: getResponsiveSize(6, 8, 10),
     flex: 1,
   },
   

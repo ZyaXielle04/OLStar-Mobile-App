@@ -13,7 +13,7 @@ import AppModal from '../AppModal';
 
 const GEOAPIFY_API_KEY = Constants?.expoConfig?.extra?.geoapifyApiKey || 
                         Constants?.manifest?.extra?.geoapifyApiKey ||
-                        "YOUR_HARDCODED_API_KEY_HERE"; // Fallback for now
+                        "YOUR_HARDCODED_API_KEY_HERE";
 
 console.log('API Key loaded:', GEOAPIFY_API_KEY ? '✅ Yes' : '❌ No');
 
@@ -278,8 +278,20 @@ export default function ProvincialForm1({ onBack, onBookNow, initialData }) {
     setShowPickupSuggestions(false);
   };
 
+  // FIXED: Updated renderPickupSuggestions with proper scrolling
   const renderPickupSuggestions = () => {
     if (!showPickupSuggestions || (!pickupPredictionsLoading && pickupPredictions.length === 0)) return null;
+
+    if (pickupPredictionsLoading) {
+      return (
+        <View style={styles.suggestionsContainer}>
+          <View style={styles.suggestionItem}>
+            <ActivityIndicator size="small" color="#ff4d4d" />
+            <Text style={styles.suggestionText}>Searching places...</Text>
+          </View>
+        </View>
+      );
+    }
 
     return (
       <View style={styles.suggestionsContainer}>
@@ -287,14 +299,11 @@ export default function ProvincialForm1({ onBack, onBookNow, initialData }) {
           style={styles.suggestionsScrollView}
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled={true}
+          scrollEnabled={true}
+          showsVerticalScrollIndicator={true}
+          removeClippedSubviews={false}
         >
-          {pickupPredictionsLoading && (
-            <View style={styles.suggestionItem}>
-              <ActivityIndicator size="small" color="#ff4d4d" />
-              <Text style={styles.suggestionText}>Searching places...</Text>
-            </View>
-          )}
-          {!pickupPredictionsLoading && pickupPredictions.map((prediction, index) => (
+          {pickupPredictions.map((prediction, index) => (
             <Pressable
               key={prediction?.properties?.place_id || prediction.place_id || `${prediction.formatted || ''}-${index}`}
               style={[
@@ -304,7 +313,9 @@ export default function ProvincialForm1({ onBack, onBookNow, initialData }) {
               onPress={() => handleLocationSelect(prediction)}
             >
               <Ionicons name="location-outline" size={16} color="#666" />
-              <Text style={styles.suggestionText}>{prediction.formatted || (prediction.properties && prediction.properties.formatted)}</Text>
+              <Text style={styles.suggestionText} numberOfLines={2}>
+                {prediction.formatted || (prediction.properties && prediction.properties.formatted)}
+              </Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -647,7 +658,7 @@ export default function ProvincialForm1({ onBack, onBookNow, initialData }) {
       
       {/* Pickup Location */}
       <Text style={styles.label}>Pickup Location *</Text>
-      <View style={[styles.autocompleteWrapper, { zIndex: 9999, overflow: 'visible' }]}>
+      <View style={[styles.autocompleteWrapper, { overflow: 'visible' }]}>
         <TextInput 
           style={styles.input}
           placeholder="Enter pickup location"

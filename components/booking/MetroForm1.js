@@ -13,7 +13,7 @@ import AppModal from '../AppModal';
 
 const GEOAPIFY_API_KEY = Constants?.expoConfig?.extra?.geoapifyApiKey || 
                         Constants?.manifest?.extra?.geoapifyApiKey ||
-                        "YOUR_HARDCODED_API_KEY_HERE"; // Fallback for now
+                        "YOUR_HARDCODED_API_KEY_HERE";
 
 console.log('API Key loaded:', GEOAPIFY_API_KEY ? '✅ Yes' : '❌ No');
 
@@ -294,6 +294,7 @@ export default function MetroForm1({ onBack, onBookNow, initialData }) {
     }
   };
 
+  // FIXED: Updated renderLocationSuggestions with proper scrolling
   const renderLocationSuggestions = (field) => {
     const suggestions = field === 'pickup' ? pickupPredictions : dropoffPredictions;
     const isLoading = field === 'pickup' ? pickupPredictionsLoading : dropoffPredictionsLoading;
@@ -301,20 +302,28 @@ export default function MetroForm1({ onBack, onBookNow, initialData }) {
 
     if (!isVisible || (!isLoading && suggestions.length === 0)) return null;
 
+    if (isLoading) {
+      return (
+        <View style={styles.suggestionsContainer}>
+          <View style={styles.suggestionItem}>
+            <ActivityIndicator size="small" color="#ff4d4d" />
+            <Text style={styles.suggestionText}>Searching places...</Text>
+          </View>
+        </View>
+      );
+    }
+
     return (
       <View style={styles.suggestionsContainer}>
         <ScrollView
           style={styles.suggestionsScrollView}
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled={true}
+          scrollEnabled={true}
+          showsVerticalScrollIndicator={true}
+          removeClippedSubviews={false}
         >
-          {isLoading && (
-            <View style={styles.suggestionItem}>
-              <ActivityIndicator size="small" color="#ff4d4d" />
-              <Text style={styles.suggestionText}>Searching places...</Text>
-            </View>
-          )}
-          {!isLoading && suggestions.map((prediction, index) => (
+          {suggestions.map((prediction, index) => (
             <Pressable
               key={prediction?.properties?.place_id || prediction.place_id || `${prediction.formatted || ''}-${index}`}
               style={[
@@ -324,7 +333,9 @@ export default function MetroForm1({ onBack, onBookNow, initialData }) {
               onPress={() => handleLocationSelect(prediction, field)}
             >
               <Ionicons name="location-outline" size={16} color="#666" />
-              <Text style={styles.suggestionText}>{prediction.formatted || (prediction.properties && prediction.properties.formatted)}</Text>
+              <Text style={styles.suggestionText} numberOfLines={2}>
+                {prediction.formatted || (prediction.properties && prediction.properties.formatted)}
+              </Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -646,7 +657,7 @@ export default function MetroForm1({ onBack, onBookNow, initialData }) {
       
       {/* Pickup Location */}
       <Text style={styles.label}>Pickup Location *</Text>
-      <View style={[styles.autocompleteWrapper, { zIndex: 9999, overflow: 'visible' }]}>
+      <View style={[styles.autocompleteWrapper, { overflow: 'visible' }]}>
         <TextInput 
           style={styles.input}
           placeholder="Enter pickup location"
@@ -660,7 +671,7 @@ export default function MetroForm1({ onBack, onBookNow, initialData }) {
       
       {/* Dropoff Location */}
       <Text style={styles.label}>Dropoff Location *</Text>
-      <View style={[styles.autocompleteWrapper, { zIndex: 9998, overflow: 'visible' }]}>
+      <View style={[styles.autocompleteWrapper, { overflow: 'visible' }]}>
         <TextInput 
           style={styles.input}
           placeholder="Enter dropoff location"
@@ -798,7 +809,7 @@ export default function MetroForm1({ onBack, onBookNow, initialData }) {
       )}
       
       <Pressable style={styles.nextButton} onPress={handleProceedToExpectations}>
-        <Text style={styles.nextButtonText}>Next: Expectations</Text>
+        <Text style={styles.nextButtonText}>Confirm</Text>
       </Pressable>
     </View>
   );

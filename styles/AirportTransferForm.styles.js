@@ -295,47 +295,51 @@ export const styles = StyleSheet.create({
   },
   autocompleteWrapper: {
     position: 'relative',
-    zIndex: 999,
+    zIndex: 1,
     marginBottom: getResponsiveSize(3, 5, 8),
     overflow: 'visible',
   },
+
   suggestionsContainer: {
     backgroundColor: '#fff',
     borderRadius: getResponsiveSize(6, 8, 10),
     borderWidth: 1,
     borderColor: '#ddd',
     maxHeight: 200,
-    position: 'absolute',
-    top: getResponsiveSize(50, 55, 60),
-    left: 0,
-    right: 0,
-    zIndex: 10000,
-    elevation: 10,
+    marginTop: getResponsiveSize(2, 3, 5),
+    marginBottom: getResponsiveSize(8, 10, 12),
+    zIndex: 1000,
+    elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    overflow: 'scroll',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    overflow: 'hidden',
   },
+
   suggestionsScrollView: {
     maxHeight: 200,
   },
+
   suggestionItem: {
-    padding: getResponsiveSize(10, 12, 15),
+    padding: getResponsiveSize(12, 14, 16),
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
+    gap: 10,
   },
+
   suggestionItemLast: {
     borderBottomWidth: 0,
   },
+
   suggestionText: {
-    fontSize: getResponsiveFontSize(12, 14),
+    fontSize: getResponsiveFontSize(13, 14),
     color: '#333',
-    marginLeft: getResponsiveSize(6, 8, 10),
     flex: 1,
+    lineHeight: getResponsiveFontSize(18, 20),
   },
   pickerButton: {
     borderWidth: 1,

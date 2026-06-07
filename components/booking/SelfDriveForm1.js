@@ -65,7 +65,7 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
     countryCode: '+63',
     contactNumber: '',
     email: '',
-    driverLicenseNumber: '',  // Add this
+    driverLicenseNumber: '',
     specialRequests: ''
   });
   
@@ -99,23 +99,19 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
     const ratesRef = child(dbRef, '/rates/carRental/selfDrive/transportUnitRates');
     const discountRef = child(dbRef, '/rates/carRental/selfDrive/globalDiscount');
     
-    // Listen for realtime updates to transportUnitRates
     const unsubscribeRates = onValue(ratesRef, (snapshot) => {
       if (snapshot.exists()) {
         const ratesData = snapshot.val();
         console.log('🔄 Real-time rates update received');
         setLatestRatesData(ratesData);
         
-        // If we're currently showing units, refresh them automatically
         if (selectedPickupArea && selectedDuration && showUnitSelection) {
-          // Get the latest global discount from state
           const currentDiscount = latestGlobalDiscount;
           filterAvailableUnitsWithData(ratesData, currentDiscount);
         }
       }
     });
     
-    // Listen for realtime updates to global discount
     const unsubscribeDiscount = onValue(discountRef, (snapshot) => {
       let discountData = null;
       if (snapshot.exists()) {
@@ -124,12 +120,10 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
           console.log('🔄 Real-time global discount update received:', discountData);
           setLatestGlobalDiscount(discountData);
           
-          // If we're currently showing units, refresh them automatically with the new discount
           if (selectedPickupArea && selectedDuration && showUnitSelection && latestRatesData) {
             filterAvailableUnitsWithData(latestRatesData, discountData);
           }
         } else {
-          // Discount is not active, clear it
           setLatestGlobalDiscount(null);
           if (selectedPickupArea && selectedDuration && showUnitSelection && latestRatesData) {
             filterAvailableUnitsWithData(latestRatesData, null);
@@ -138,19 +132,17 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
       }
     });
     
-    // Cleanup listeners on unmount
     return () => {
       unsubscribeRates();
       unsubscribeDiscount();
     };
   }, [selectedPickupArea, selectedDuration, showUnitSelection]);
 
-  // Watch for filteredUnits changes to update selected unit
   useEffect(() => {
     if (selectedUnit && filteredUnits.length > 0) {
       const updatedUnit = filteredUnits.find(u => u.id === selectedUnit.id);
       if (updatedUnit) {
-        const oldPrice = selectedUnit.discountedPrice || selectedUnit.basePrice;
+        const oldPrice = updatedUnit.discountedPrice || updatedUnit.basePrice;
         const newPrice = updatedUnit.discountedPrice || updatedUnit.basePrice;
         if (oldPrice !== newPrice) {
           console.log(`🔄 Selected unit price changed: ${oldPrice} -> ${newPrice}`);
@@ -160,7 +152,6 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
     }
   }, [filteredUnits]);
 
-  // Separate function to update selected unit price without causing loops
   const updateSelectedUnitPrice = (unit) => {
     setSelectedUnit(unit);
     
@@ -180,28 +171,24 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
     }
   };
 
-  // Load data on mount
   useEffect(() => {
     loadDurations();
     loadLocations();
     loadTransportUnits();
   }, []);
 
-  // Restore saved data
   useEffect(() => {
     if (initialData) {
       restoreSavedData(initialData);
     }
   }, [initialData]);
 
-  // Auto-calculate return date when pickup date/time and duration change
   useEffect(() => {
     if (pickupDate && pickupTime && selectedDuration) {
       calculateReturnDate();
     }
   }, [pickupDate, pickupTime, selectedDuration]);
 
-  // Search location predictions
   useEffect(() => {
     const query = pickupLocation.trim();
     if (query.length < 3) {
@@ -226,7 +213,6 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
     return () => clearTimeout(timeout);
   }, [dropoffLocation]);
 
-  // Auto-scroll to selected values when date picker opens
   useEffect(() => {
     if (showPickupDatePicker) {
       setTimeout(() => {
@@ -246,7 +232,6 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
     }
   }, [showPickupDatePicker]);
 
-  // Auto-scroll to selected values when time picker opens
   useEffect(() => {
     if (showPickupTimePicker) {
       setTimeout(() => {
@@ -403,6 +388,7 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
     }
   };
 
+  // FIXED: Updated renderLocationSuggestions with proper scrolling
   const renderLocationSuggestions = (field) => {
     const suggestions = field === 'pickup' ? pickupPredictions : dropoffPredictions;
     const isLoading = field === 'pickup' ? pickupPredictionsLoading : dropoffPredictionsLoading;
@@ -410,20 +396,28 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
 
     if (!isVisible || (!isLoading && suggestions.length === 0)) return null;
 
+    if (isLoading) {
+      return (
+        <View style={styles.suggestionsContainer}>
+          <View style={styles.suggestionItem}>
+            <ActivityIndicator size="small" color="#ff4d4d" />
+            <Text style={styles.suggestionText}>Searching places...</Text>
+          </View>
+        </View>
+      );
+    }
+
     return (
       <View style={styles.suggestionsContainer}>
         <ScrollView
           style={styles.suggestionsScrollView}
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled={true}
+          scrollEnabled={true}
+          showsVerticalScrollIndicator={true}
+          removeClippedSubviews={false}
         >
-          {isLoading && (
-            <View style={styles.suggestionItem}>
-              <ActivityIndicator size="small" color="#ff4d4d" />
-              <Text style={styles.suggestionText}>Searching places...</Text>
-            </View>
-          )}
-          {!isLoading && suggestions.map((prediction, index) => (
+          {suggestions.map((prediction, index) => (
             <Pressable
               key={prediction?.properties?.place_id || prediction.place_id || `${prediction.formatted || ''}-${index}`}
               style={[
@@ -433,7 +427,9 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
               onPress={() => handleLocationSelect(prediction, field)}
             >
               <Ionicons name="location-outline" size={16} color="#666" />
-              <Text style={styles.suggestionText}>{prediction.formatted || (prediction.properties && prediction.properties.formatted)}</Text>
+              <Text style={styles.suggestionText} numberOfLines={2}>
+                {prediction.formatted || (prediction.properties && prediction.properties.formatted)}
+              </Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -731,7 +727,6 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
       setPassengerDetails(prev => ({ 
         ...prev, 
         ...data.passengerDetails,
-        // Ensure driverLicenseNumber is preserved
         driverLicenseNumber: data.passengerDetails.driverLicenseNumber || prev.driverLicenseNumber
       }));
     }
@@ -757,7 +752,7 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
   };
 
   const formatPrice = (price) => {
-    if (!price) return '₱0';
+    if (!price && price !== 0) return '₱0';
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
       currency: 'PHP',
@@ -768,7 +763,7 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
 
   const getUnitTypeIcon = (type) => {
     switch (type?.toLowerCase()) {
-      case 'van': return 'van-passenger';
+      case 'van': return 'bus-outline';
       case 'suv': return 'car-sport';
       case 'sedan': return 'car';
       default: return 'car';
@@ -839,11 +834,11 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
 
   // Render Itinerary Section
   const renderItinerarySection = () => (
-    <View style={[styles.section, { overflow: 'visible', zIndex: 999 }]}>
+    <View style={[styles.section, { overflow: 'visible', zIndex: 1 }]}>
       <Text style={styles.sectionTitle}>Trip Details</Text>
       
       <Text style={styles.label}>Pickup Location *</Text>
-      <View style={[styles.autocompleteWrapper, { zIndex: 9999, overflow: 'visible' }]}>
+      <View style={[styles.autocompleteWrapper, { overflow: 'visible' }]}>
         <TextInput 
           style={[styles.input, pickupLocationError && styles.inputError]}
           placeholder="Enter pickup location"
@@ -853,11 +848,11 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
           onFocus={() => setShowPickupSuggestions(true)}
         />
         {pickupLocationError ? <Text style={styles.errorText}>{pickupLocationError}</Text> : null}
-        {showPickupSuggestions && renderLocationSuggestions('pickup')}
+        {renderLocationSuggestions('pickup')}
       </View>
       
       <Text style={styles.label}>Dropoff Location (Optional)</Text>
-      <View style={[styles.autocompleteWrapper, { zIndex: 9998, overflow: 'visible' }]}>
+      <View style={[styles.autocompleteWrapper, { overflow: 'visible' }]}>
         <TextInput 
           style={[styles.input, dropoffLocationError && styles.inputError]}
           placeholder="Leave empty if same as pickup"
@@ -867,7 +862,7 @@ export default function SelfDriveForm1({ onBack, onBookNow, initialData }) {
           onFocus={() => setShowDropoffSuggestions(true)}
         />
         {dropoffLocationError ? <Text style={styles.errorText}>{dropoffLocationError}</Text> : null}
-        {showDropoffSuggestions && renderLocationSuggestions('dropoff')}
+        {renderLocationSuggestions('dropoff')}
       </View>
       
       <Text style={styles.label}>Pickup Date *</Text>

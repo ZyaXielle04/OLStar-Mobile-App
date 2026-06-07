@@ -1,5 +1,5 @@
 // components/booking/AirportTransferForm1.js
-import { View, Text, TextInput, Pressable, ScrollView, Alert, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, Alert, Modal, ActivityIndicator, FlatList } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { styles } from '../../styles/AirportTransferForm.styles';
 import { database } from '../../firebaseConfig';
@@ -8,11 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import Constants from 'expo-constants';
 import countryCodes from './countryCodes';
-import countryCodesWithFlags from './countryCodes';
 
 const GEOAPIFY_API_KEY = Constants?.expoConfig?.extra?.geoapifyApiKey || 
                         Constants?.manifest?.extra?.geoapifyApiKey ||
-                        "YOUR_HARDCODED_API_KEY_HERE"; // Fallback for now
+                        "YOUR_HARDCODED_API_KEY_HERE";
 
 console.log('API Key loaded:', GEOAPIFY_API_KEY ? '✅ Yes' : '❌ No');
 
@@ -20,7 +19,7 @@ export default function AirportTransferForm1({ onBack, onBookNow, initialData })
   const fallbackAreas = [
     { id: 'makati', name: 'Makati', prices: { 'Economy 4': '4200', 'Premium 6': '5500', 'Luxury 10': '7500' } },
     { id: 'bgc', name: 'BGC', prices: { 'Economy 4': '4500', 'Premium 6': '5800', 'Luxury 10': '7800' } },
-    { id: 'las_pinas', name: 'Las PiÃ±as', prices: { 'Economy 4': '4000', 'Premium 6': '5300', 'Luxury 10': '7300' } },
+    { id: 'las_pinas', name: 'Las Piñas', prices: { 'Economy 4': '4000', 'Premium 6': '5300', 'Luxury 10': '7300' } },
     { id: 'quezon_city', name: 'Quezon City', prices: { 'Economy 4': '4800', 'Premium 6': '6100', 'Luxury 10': '8100' } }
   ];
 
@@ -731,6 +730,7 @@ export default function AirportTransferForm1({ onBack, onBookNow, initialData })
     }
   };
 
+  // UPDATED: Using FlatList for better scrolling
   const renderLocationSuggestions = (field) => {
     const suggestions = field === 'pickup' ? pickupPredictions : dropoffPredictions;
     const isLoading = field === 'pickup' ? pickupPredictionsLoading : dropoffPredictionsLoading;
@@ -738,20 +738,28 @@ export default function AirportTransferForm1({ onBack, onBookNow, initialData })
 
     if (!isVisible || (!isLoading && suggestions.length === 0)) return null;
 
+    if (isLoading) {
+      return (
+        <View style={styles.suggestionsContainer}>
+          <View style={styles.suggestionItem}>
+            <ActivityIndicator size="small" color="#ff4d4d" />
+            <Text style={styles.suggestionText}>Searching places...</Text>
+          </View>
+        </View>
+      );
+    }
+
     return (
       <View style={styles.suggestionsContainer}>
         <ScrollView
           style={styles.suggestionsScrollView}
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled={true}
+          scrollEnabled={true}
+          showsVerticalScrollIndicator={true}
+          removeClippedSubviews={false}
         >
-          {isLoading && (
-            <View style={styles.suggestionItem}>
-              <ActivityIndicator size="small" color="#ff4d4d" />
-              <Text style={styles.suggestionText}>Searching places...</Text>
-            </View>
-          )}
-          {!isLoading && suggestions.map((prediction, index) => (
+          {suggestions.map((prediction, index) => (
             <Pressable
               key={prediction?.properties?.place_id || prediction.place_id || `${prediction.formatted || ''}-${index}`}
               style={[
@@ -761,7 +769,9 @@ export default function AirportTransferForm1({ onBack, onBookNow, initialData })
               onPress={() => handleLocationSuggestionSelect(prediction, field)}
             >
               <Ionicons name="location-outline" size={16} color="#666" />
-              <Text style={styles.suggestionText}>{prediction.formatted || (prediction.properties && prediction.properties.formatted)}</Text>
+              <Text style={styles.suggestionText} numberOfLines={2}>
+                {prediction.formatted || (prediction.properties && prediction.properties.formatted)}
+              </Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -1049,6 +1059,7 @@ export default function AirportTransferForm1({ onBack, onBookNow, initialData })
       style={styles.container}
       nestedScrollEnabled={true}
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={true}
     >
       {/* Itinerary Section */}
       <View style={styles.itinerary}>

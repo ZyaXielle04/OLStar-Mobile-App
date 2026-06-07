@@ -97,7 +97,7 @@ export const styles = StyleSheet.create({
   },
   autocompleteWrapper: {
     position: 'relative',
-    zIndex: 9999,
+    zIndex: 1,
     marginBottom: 5,
     overflow: 'visible',
   },
@@ -107,12 +107,10 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     maxHeight: 200,
-    position: 'absolute',
-    top: 50,
-    left: 0,
-    right: 0,
-    zIndex: 10000,
-    elevation: 100,
+    marginTop: 4,
+    marginBottom: 12,
+    zIndex: 1000,
+    elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -129,6 +127,7 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
+    gap: 8,
   },
   suggestionItemLast: {
     borderBottomWidth: 0,
@@ -136,7 +135,6 @@ export const styles = StyleSheet.create({
   suggestionText: {
     fontSize: getResponsiveFontSize(14),
     color: '#333',
-    marginLeft: 8,
     flex: 1,
   },
   pickerButton: {
