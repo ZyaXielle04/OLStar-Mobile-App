@@ -1,13 +1,18 @@
 import { useState, useRef } from 'react';
 
-import { Text, View, TextInput, Pressable, ScrollView, } from 'react-native';
+import { Text, View, TextInput, Pressable, ScrollView } from 'react-native';
 
-import { createUserWithEmailAndPassword, sendEmailVerification, PhoneAuthProvider, signInWithCredential, } from 'firebase/auth';
+import { 
+  createUserWithEmailAndPassword, 
+  sendEmailVerification, 
+  PhoneAuthProvider, 
+  signInWithCredential 
+} from 'firebase/auth';
 
-import { FirebaseRecaptchaVerifierModal, } from 'expo-firebase-recaptcha';
+// Firebase now handles reCAPTCHA automatically on mobile
+// No need to import FirebaseRecaptchaVerifierModal
 
-import { auth, firebaseConfig, database, } from '../firebaseConfig';
-
+import { auth, database } from '../firebaseConfig';
 import { ref, set } from 'firebase/database';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,7 +25,7 @@ import AppModal from '../components/AppModal';
 
 export default function RegisterScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const recaptchaVerifier = useRef(null);
+  // Remove recaptchaVerifier ref - Firebase handles it automatically
 
   // STATES
   const [fullName, setFullName] = useState('');
@@ -35,6 +40,7 @@ export default function RegisterScreen({ navigation }) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationId, setVerificationId] = useState('');
   const [otp, setOtp] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // ================= MODAL STATE =================
   const [modalVisible, setModalVisible] = useState(false);
@@ -143,6 +149,8 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
+    setIsLoading(true);
+
     try {
       const result = await createUserWithEmailAndPassword(
         auth,
@@ -169,38 +177,77 @@ export default function RegisterScreen({ navigation }) {
 
       await sendEmailVerification(user);
 
-      showModal('Verification email sent 📩');
+      showModal('Verification email sent! Please check your inbox 📩');
       startRedirect();
 
     } catch (error) {
-      showModal(error.message);
+      console.error('Registration error:', error);
+      
+      if (error.code === 'auth/email-already-in-use') {
+        showModal('Email already in use. Please use a different email or login.');
+      } else if (error.code === 'auth/invalid-email') {
+        showModal('Invalid email address.');
+      } else if (error.code === 'auth/weak-password') {
+        showModal('Password is too weak. Please use a stronger password.');
+      } else {
+        showModal(error.message);
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // ================= PHONE OTP =================
+  // Note: Phone authentication requires a reCAPTCHA verifier
+  // For mobile apps, Firebase can use Application Verifier automatically
   const sendOTP = async () => {
     if (!phoneNumber) {
       showModal('Enter phone number.');
       return;
     }
 
+    // Validate phone number format (simple validation)
+    const phoneRegex = /^\+?[0-9]{10,15}$/;
+    if (!phoneRegex.test(phoneNumber.replace(/[\s\-\(\)]/g, ''))) {
+      showModal('Please enter a valid phone number with country code (e.g., +1234567890)');
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
       const provider = new PhoneAuthProvider(auth);
-
-      const id = await provider.verifyPhoneNumber(
-        phoneNumber,
-        recaptchaVerifier.current
-      );
-
+      
+      // Firebase now handles reCAPTCHA automatically on React Native
+      // For mobile apps, setApplicationVerifier is optional
+      const id = await provider.verifyPhoneNumber(phoneNumber);
+      
       setVerificationId(id);
-      showModal('OTP sent 📱');
+      showModal('OTP sent successfully! 📱');
 
     } catch (error) {
-      showModal(error.message);
+      console.error('OTP error:', error);
+      
+      if (error.code === 'auth/invalid-phone-number') {
+        showModal('Invalid phone number format. Use country code (e.g., +1234567890)');
+      } else if (error.code === 'auth/too-many-requests') {
+        showModal('Too many requests. Please try again later.');
+      } else {
+        showModal('Failed to send OTP: ' + error.message);
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const verifyOTP = async () => {
+    if (!otp || otp.length < 6) {
+      showModal('Please enter the 6-digit OTP.');
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
       const credential = PhoneAuthProvider.credential(
         verificationId,
@@ -221,22 +268,32 @@ export default function RegisterScreen({ navigation }) {
         lastLogin: now,
       });
 
-      showModal('Phone verified 🎉');
+      showModal('Phone verified successfully! 🎉');
       startRedirect();
 
     } catch (error) {
-      showModal('Invalid OTP.');
+      console.error('OTP verification error:', error);
+      
+      if (error.code === 'auth/invalid-verification-code') {
+        showModal('Invalid OTP. Please try again.');
+      } else if (error.code === 'auth/session-expired') {
+        showModal('OTP expired. Please request a new code.');
+        setVerificationId('');
+        setOtp('');
+      } else {
+        showModal('Failed to verify OTP: ' + error.message);
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <>
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={firebaseConfig}
-      />
+      {/* Remove FirebaseRecaptchaVerifierModal - not needed */}
+      {/* Firebase handles reCAPTCHA automatically on mobile */}
 
-      {/* ✅ REUSABLE MODAL */}
+      {/* REUSABLE MODAL */}
       <AppModal
         visible={modalVisible}
         message={modalMessage}
@@ -255,7 +312,6 @@ export default function RegisterScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
-
           <Text style={styles.title}>Create Account ✨</Text>
 
           <Text style={styles.subtitle}>
@@ -279,6 +335,7 @@ export default function RegisterScreen({ navigation }) {
             onChangeText={setEmail}
             style={styles.input}
             autoCapitalize="none"
+            keyboardType="email-address"
           />
 
           {/* PASSWORD */}
@@ -387,7 +444,7 @@ export default function RegisterScreen({ navigation }) {
                     flex: 1,
                   }}
                 >
-                  Passwords are the same and complied to the password requirements
+                  Password meets all requirements
                 </Text>
               </View>
             )}
@@ -423,19 +480,24 @@ export default function RegisterScreen({ navigation }) {
           </View>
 
           <Pressable
-            style={styles.button}
+            style={[styles.button, isLoading && { opacity: 0.7 }]}
             onPress={handleRegister}
+            disabled={isLoading}
           >
             <Text style={styles.buttonText}>
-              Create Account
+              {isLoading ? 'Creating Account...' : 'Create Account'}
             </Text>
           </Pressable>
 
           <Text style={styles.or}>OR</Text>
 
-          {/* PHONE */}
+          {/* PHONE NUMBER */}
+          <Text style={styles.phoneHint}>
+            Enter phone number with country code (e.g., +63XXXXXXXXXX)
+          </Text>
+          
           <TextInput
-            placeholder="Phone Number"
+            placeholder="Phone Number (e.g., +639171234567)"
             placeholderTextColor="#94a3b8"
             value={phoneNumber}
             onChangeText={setPhoneNumber}
@@ -444,8 +506,9 @@ export default function RegisterScreen({ navigation }) {
           />
 
           <Pressable
-            style={styles.socialButton}
+            style={[styles.socialButton, isLoading && { opacity: 0.7 }]}
             onPress={sendOTP}
+            disabled={isLoading}
           >
             <View style={styles.socialRow}>
               <Ionicons
@@ -455,7 +518,7 @@ export default function RegisterScreen({ navigation }) {
               />
 
               <Text style={styles.socialText}>
-                Send OTP
+                {isLoading ? 'Sending OTP...' : 'Send OTP'}
               </Text>
             </View>
           </Pressable>
@@ -463,24 +526,26 @@ export default function RegisterScreen({ navigation }) {
           {verificationId && (
             <>
               <TextInput
-                placeholder="Enter OTP"
+                placeholder="Enter 6-digit OTP"
                 placeholderTextColor="#94a3b8"
                 value={otp}
                 onChangeText={setOtp}
                 style={styles.input}
+                keyboardType="number-pad"
+                maxLength={6}
               />
 
               <Pressable
-                style={styles.button}
+                style={[styles.button, isLoading && { opacity: 0.7 }]}
                 onPress={verifyOTP}
+                disabled={isLoading}
               >
                 <Text style={styles.buttonText}>
-                  Verify OTP
+                  {isLoading ? 'Verifying...' : 'Verify OTP'}
                 </Text>
               </Pressable>
             </>
           )}
-
         </View>
 
         {/* FOOTER */}

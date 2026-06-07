@@ -11,9 +11,11 @@ import countryCodes from './countryCodes';
 import countryCodesWithFlags from './countryCodes';
 import AppModal from '../AppModal';
 
-const GEOAPIFY_API_KEY = Constants?.manifest?.extra?.EXPO_PUBLIC_GEOAPIFY_API_KEY ||
-  Constants?.expoConfig?.extra?.EXPO_PUBLIC_GEOAPIFY_API_KEY ||
-  process.env?.EXPO_PUBLIC_GEOAPIFY_API_KEY;
+const GEOAPIFY_API_KEY = Constants?.expoConfig?.extra?.geoapifyApiKey || 
+                        Constants?.manifest?.extra?.geoapifyApiKey ||
+                        "YOUR_HARDCODED_API_KEY_HERE"; // Fallback for now
+
+console.log('API Key loaded:', GEOAPIFY_API_KEY ? '✅ Yes' : '❌ No');
 
 export default function ProvincialForm1({ onBack, onBookNow, initialData }) {
   const [loading, setLoading] = useState(true);

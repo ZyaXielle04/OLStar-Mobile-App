@@ -186,4 +186,12 @@ export const styles = StyleSheet.create({
     color: '#fcdaf6',
     fontWeight: '700',
   },
+
+  phoneHint: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginBottom: 8,
+    marginTop: -4,
+    textAlign: 'center',
+  },
 });

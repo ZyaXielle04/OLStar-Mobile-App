@@ -1,25 +1,24 @@
 {
+  "cli": {
+    "appVersionSource": "remote"
+  },
   "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
-    },
     "preview": {
-      "distribution": "internal",
       "android": {
         "buildType": "apk"
       },
-      "ios": {
-        "simulator": false
+      "env": {
+        "EXPO_PUBLIC_GEOAPIFY_API_KEY": "17e0743cffa64e8eac1bc2d048180484"
       }
     },
     "production": {
+      "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
-      },
-      "ios": {
-        "simulator": false
       }
     }
+  },
+  "submit": {
+    "production": {}
   }
 }
