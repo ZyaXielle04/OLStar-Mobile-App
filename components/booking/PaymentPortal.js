@@ -348,16 +348,23 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
       date: completedBooking.pickupDate || '',
       email: clientEmail,
       note: completedBooking.passengerDetails?.specialRequests || completedBooking.passengerDetails?.note || '',
+      unitId: completedBooking.selectedUnit?.id || '',
       carType: completedBooking.selectedUnit?.name || '',
+      vehicleType: completedBooking.selectedUnit?.type || '',
+      vehicleColor: completedBooking.selectedUnit?.color || '',
       paidAt: now.toISOString(),
       paymentMethod: getPaymentMethodValue(completedBooking.paymentMethod),
       paymentStatus: 'paid',
-      pickup: completedBooking.pickupLocation || '',
-      dropoff: completedBooking.dropoffLocation || '',
+      pickUpLocation: completedBooking.pickupLocation || '',
+      returnLocation: completedBooking.dropoffLocation || '',
       pickupTime: completedBooking.pickupTime || '',
       returnDateTime: completedBooking.returnDate || '',
       rentalDuration: completedBooking.selectedDuration?.name || '',
       driverLicenseNumber: completedBooking.passengerDetails?.driverLicenseNumber || '',
+      originalPrice: parseInt(completedBooking.price?.original) || 0,
+      discountAmount: completedBooking.price?.discount?.value || 0,
+      discountType: completedBooking.price?.discount?.type || '',
+      deliveryFee: parseInt(completedBooking.price?.deliveryFee) || 0,
       source: 'pending',
       status: 'unassigned',
       timestamp: serverTimestamp(),
@@ -365,6 +372,7 @@ export default function PaymentPortal({ bookingData, onBack, onPaymentComplete }
     
     await set(bookingRef, bookingRecord);
     console.log('Self Drive Car Rental booking saved with ID:', bookingId);
+    console.log('Unit ID saved:', bookingRecord.unitId);
     return bookingId;
   };
   

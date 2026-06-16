@@ -62,17 +62,20 @@ export default function CustomerBookingReceipt({ route, navigation }) {
       paymentDateValue = new Date(paymentDateValue).toISOString();
     }
     
+    // Extract status - prefer booking status over payment status
+    const bookingStatus = data.status || 'unassigned';
+    
     const baseReceipt = {
       id: id,
-      bookingId: id,
+      bookingId: data.bookingId || id,
       serviceType: type,
+      status: bookingStatus,
       paymentStatus: data.paymentStatus,
       paymentMethod: data.paymentMethod,
       paymentDate: paymentDateValue,
       amount: data.amount,
       timestamp: data.timestamp,
       source: data.source,
-      status: data.status,
       clientId: data.clientId,
       clientName: data.clientName,
       email: data.email,
@@ -135,14 +138,21 @@ export default function CustomerBookingReceipt({ route, navigation }) {
       return {
         ...baseReceipt,
         serviceType: 'selfdrive',
-        pickupLocation: data.pickup,
-        dropoffLocation: data.dropoff,
+        pickupLocation: data.pickUpLocation || data.pickupLocation,
+        dropoffLocation: data.returnLocation || data.dropoffLocation,
         pickupDate: data.date,
         pickupTime: data.pickupTime,
         returnDateTime: data.returnDateTime,
         rentalDuration: data.rentalDuration,
+        unitId: data.unitId,
         carType: data.carType,
-        driverLicenseNumber: data.driverLicenseNumber
+        vehicleType: data.vehicleType,
+        vehicleColor: data.vehicleColor,
+        driverLicenseNumber: data.driverLicenseNumber,
+        originalPrice: data.originalPrice,
+        discountAmount: data.discountAmount,
+        discountType: data.discountType,
+        deliveryFee: data.deliveryFee
       };
     }
     
@@ -233,26 +243,59 @@ export default function CustomerBookingReceipt({ route, navigation }) {
     return types[booking.tripType] || booking.tripType;
   };
 
+  // ✅ UPDATED: Status functions for 4 status types
   const getStatusColor = () => {
     if (!booking) return '#666';
-    const status = booking?.paymentStatus || booking?.status;
-    if (status === 'paid') return '#4caf50';
-    if (status === 'pending') return '#ff9800';
-    if (status === 'cancelled') return '#f44336';
-    if (status === 'completed') return '#2196f3';
-    if (status === 'unassigned') return '#ff9800';
-    return '#666';
+    const status = booking?.status || 'unassigned';
+    
+    switch(status) {
+      case 'unassigned':
+        return '#ff9800'; // Orange - waiting for assignment
+      case 'assigned':
+        return '#2196f3'; // Blue - driver/vehicle assigned
+      case 'completed':
+        return '#4caf50'; // Green - service completed
+      case 'cancelled':
+        return '#f44336'; // Red - cancelled
+      default:
+        return '#666';
+    }
   };
 
   const getStatusText = () => {
     if (!booking) return 'LOADING';
-    const status = booking?.paymentStatus || booking?.status;
-    if (status === 'paid') return 'CONFIRMED';
-    if (status === 'pending') return 'PENDING';
-    if (status === 'cancelled') return 'CANCELLED';
-    if (status === 'completed') return 'COMPLETED';
-    if (status === 'unassigned') return 'CONFIRMED';
-    return status?.toUpperCase() || 'CONFIRMED';
+    const status = booking?.status || 'unassigned';
+    
+    switch(status) {
+      case 'unassigned':
+        return 'PENDING ASSIGNMENT';
+      case 'assigned':
+        return 'ASSIGNED';
+      case 'completed':
+        return 'COMPLETED';
+      case 'cancelled':
+        return 'CANCELLED';
+      default:
+        return status?.toUpperCase() || 'UNASSIGNED';
+    }
+  };
+
+  const getStatusIcon = () => {
+    if (!booking) return 'time-outline';
+    const status = booking?.status || 'unassigned';
+    
+    switch(status) {
+      case 'unassigned':
+        return 'time-outline';
+      case 'assigned':
+        return 'checkmark-circle-outline';
+      case 'completed':
+        return 'checkmark-done-circle-outline';
+      case 'cancelled':
+        return 'close-circle-outline';
+      default:
+        return 'time-outline';
+    }
   };
 
   const formatVehicleType = (type) => {
@@ -350,14 +393,18 @@ export default function CustomerBookingReceipt({ route, navigation }) {
       case 'selfDriveCarRental':
         return (
           <View style={styles.detailCard}>
-            {renderDetailItem('car-outline', 'Vehicle Type', booking.carType || 'Not specified')}
+            {renderDetailItem('car-outline', 'Vehicle', booking.carType || 'Not specified')}
+            {booking.vehicleType ? renderDetailItem('options-outline', 'Vehicle Type', formatVehicleType(booking.vehicleType)) : null}
+            {booking.vehicleColor ? renderDetailItem('color-palette-outline', 'Color', booking.vehicleColor) : null}
+            {booking.unitId ? renderDetailItem('id-card-outline', 'Unit ID', booking.unitId) : null}
             {renderDetailItem('location-outline', 'Pickup Location', booking.pickupLocation)}
-            {renderDetailItem('navigate-outline', 'Dropoff Location', booking.dropoffLocation)}
+            {renderDetailItem('navigate-outline', 'Dropoff Location', booking.dropoffLocation || 'Same as pickup')}
             {renderDetailItem('calendar-outline', 'Pickup Date', formatDate(booking.pickupDate))}
             {renderDetailItem('time-outline', 'Pickup Time', booking.pickupTime || 'Flexible')}
-            {booking.returnDateTime ? renderDetailItem('calendar-outline', 'Return Date', formatDate(booking.returnDateTime)) : null}
+            {booking.returnDateTime ? renderDetailItem('calendar-outline', 'Return Date & Time', booking.returnDateTime) : null}
             {renderDetailItem('hourglass-outline', 'Duration', booking.rentalDuration || 'Not specified')}
             {booking.driverLicenseNumber ? renderDetailItem('id-card-outline', 'License Number', booking.driverLicenseNumber) : null}
+            {booking.deliveryFee > 0 ? renderDetailItem('cash-outline', 'Delivery Fee', formatPrice(booking.deliveryFee)) : null}
           </View>
         );
 
@@ -488,13 +535,17 @@ Passengers: ${booking.passengers || '1'}
       } else if (booking.serviceType === 'selfdrive' || booking.serviceType === 'selfDriveCarRental') {
         receiptText += `
 Vehicle: ${booking.carType || 'Not specified'}
+${booking.vehicleType ? `Vehicle Type: ${formatVehicleType(booking.vehicleType)}\n` : ''}
+${booking.vehicleColor ? `Color: ${booking.vehicleColor}\n` : ''}
+${booking.unitId ? `Unit ID: ${booking.unitId}\n` : ''}
 Pickup Location: ${booking.pickupLocation || 'Not specified'}
-Dropoff Location: ${booking.dropoffLocation || 'Not specified'}
+Dropoff Location: ${booking.dropoffLocation || 'Same as pickup'}
 Pickup Date: ${formatDate(booking.pickupDate)}
 Pickup Time: ${booking.pickupTime || 'Flexible'}
-${booking.returnDateTime ? `Return Date: ${formatDate(booking.returnDateTime)}\n` : ''}
+${booking.returnDateTime ? `Return Date & Time: ${booking.returnDateTime}\n` : ''}
 Duration: ${booking.rentalDuration || 'Not specified'}
 ${booking.driverLicenseNumber ? `License Number: ${booking.driverLicenseNumber}\n` : ''}
+${booking.deliveryFee > 0 ? `Delivery Fee: ${formatPrice(booking.deliveryFee)}\n` : ''}
 `;
       }
       
@@ -554,6 +605,7 @@ Thank you for choosing OLStar! ✨
 
   const statusColor = getStatusColor();
   const statusText = getStatusText();
+  const statusIcon = getStatusIcon();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -569,13 +621,20 @@ Thank you for choosing OLStar! ✨
           {/* Colored Header */}
           <View style={[styles.headerGradient, { backgroundColor: statusColor }]}>
             <View style={styles.successIcon}>
-              <Ionicons name="checkmark-circle" size={50} color="#ffffff" />
+              <Ionicons name={statusIcon} size={50} color="#ffffff" />
             </View>
-            <Text style={styles.title}>Booking {statusText === 'CONFIRMED' ? 'Confirmed!' : statusText}</Text>
+            <Text style={styles.title}>
+              {statusText === 'PENDING ASSIGNMENT' ? 'Booking Confirmed!' : 
+               statusText === 'ASSIGNED' ? 'Booking Assigned!' :
+               statusText === 'COMPLETED' ? 'Service Completed!' :
+               statusText === 'CANCELLED' ? 'Booking Cancelled' : 'Booking Details'}
+            </Text>
             <Text style={styles.subtitle}>
-              {statusText === 'CONFIRMED' 
-                ? 'Your booking has been successfully confirmed' 
-                : 'Your booking details are shown below'}
+              {statusText === 'PENDING ASSIGNMENT' && 'We are currently assigning a driver and vehicle for you'}
+              {statusText === 'ASSIGNED' && 'A driver and vehicle have been assigned to your booking'}
+              {statusText === 'COMPLETED' && 'This service has been completed successfully'}
+              {statusText === 'CANCELLED' && 'This booking has been cancelled'}
+              {!['PENDING ASSIGNMENT', 'ASSIGNED', 'COMPLETED', 'CANCELLED'].includes(statusText) && 'Your booking details are shown below'}
             </Text>
           </View>
 
@@ -656,7 +715,7 @@ Thank you for choosing OLStar! ✨
               </View>
               <View style={styles.noteItem}>
                 <Ionicons name="time-outline" size={16} color="#ff9800" />
-                <Text style={styles.noteText}>Please be ready 15 minutes before scheduled time</Text>
+                <Text style={styles.noteText}>Please be ready 30 minutes before scheduled time</Text>
               </View>
               <View style={styles.noteItem}>
                 <Ionicons name="call-outline" size={16} color="#ff9800" />

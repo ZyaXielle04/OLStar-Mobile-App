@@ -60,7 +60,17 @@ export default function CustomerBookings({ navigation }) {
           id: key,
           ...bookingsData[key]
         })).sort((a, b) => {
-          // Sort by timestamp descending (newest first)
+          // Sort by bookingId descending (newest first)
+          // bookingId format: YYYY-MM-DD-XXXXX
+          const idA = a.bookingId || a.id || '';
+          const idB = b.bookingId || b.id || '';
+          
+          // If both have bookingId, sort by that
+          if (idA && idB) {
+            return idB.localeCompare(idA); // Descending: newest first
+          }
+          
+          // Fallback to timestamp if bookingId is missing
           const dateA = a.timestamp ? new Date(a.timestamp) : new Date(0);
           const dateB = b.timestamp ? new Date(b.timestamp) : new Date(0);
           return dateB - dateA;

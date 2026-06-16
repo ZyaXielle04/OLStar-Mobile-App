@@ -162,7 +162,7 @@ export default function CustomerHome({ navigation }) {
       title: 'Metro Manila Rental',
       icon: 'car-outline',
       color: '#ff4d4d',
-      description: 'With driver • Metro Manila only',
+      description: 'Car Rental With driver • Metro Manila only',
       formType: 'metro'
     },
     {
@@ -170,7 +170,7 @@ export default function CustomerHome({ navigation }) {
       title: 'Provincial Rental',
       icon: 'map-outline',
       color: '#4caf50',
-      description: 'With driver • Anywhere in PH',
+      description: 'Car Rental With driver • Anywhere in PH',
       formType: 'provincial'
     },
     {
@@ -178,7 +178,7 @@ export default function CustomerHome({ navigation }) {
       title: 'Self Drive Rental',
       icon: 'car-sport-outline',
       color: '#ff9800',
-      description: 'Drive yourself • Best rates',
+      description: 'Car Rental Self Drive • Best rates',
       formType: 'selfdrive'
     }
   ];
